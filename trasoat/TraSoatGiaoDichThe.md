@@ -26,10 +26,12 @@ Bảng này đóng vai trò quan trọng nhất, lưu trữ toàn bộ thông ti
 | `transaction_type` | VARCHAR(20) | | Loại giao dịch. Có thể setup Enum: `RETAIL` (quẹt POS/Online), `ATM` (rút tiền). |
 | `reason_code` | VARCHAR(50) | FK | Mã lý do tra soát (Liên kết với bảng danh mục `dispute_reasons` bên dưới). |
 | `status` | VARCHAR(30) | INDEX | Trạng thái hiện tại: `NEW` (Mới), `PROCESSING` (Đang xử lý), `COMPLETED` (Xử lý hoàn tất), `CANCELLED` (Hủy), `CLOSED` (Đã đóng). |
-| `assigned_unit` | VARCHAR(100) | | Đơn vị tiếp nhận công việc (VD: `RISK_TEAM`, `FRAUD_TEAM`). |
+| `assigned_unit` | VARCHAR(50) | FK | Mã phòng ban tiếp nhận (Tham chiếu bảng Danh mục `departments`: `RISK_TEAM`, `CARD_DEPT`...). |
 | `cte_creator_id` | INT | FK | ID của Tổng đài viên (CTE) đã tạo vé. |
-| `risk_assignee_id` | INT | FK | ID của nhân viên Team RISK chọn tiếp nhận xử lý vé này. |
-| `risk_assignee_name`| VARCHAR(100) | | Tên nhân viên RISK tiếp nhận (Lưu dạng chuỗi để tra cứu nhanh từ Website trả về cho KH nhanh chóng, k cần JOIN sang bảng Users). |
+| `risk_assignee_id` | INT | FK | ID của nhân viên Team RISK chọn tiếp nhận xử lý vé này lúc đầu. |
+| `risk_assignee_name`| VARCHAR(100) | | Tên nhân viên RISK tiếp nhận ban đầu (Lưu dạng chuỗi để tra cứu nhanh từ Website). |
+| `forwarded_assignee_id` | INT | FK | ID nhân viên phòng ban khác (vd: Phòng Thẻ) tiếp nhận xử lý (nếu có chuyển tiếp). |
+| `forwarded_assignee_name`| VARCHAR(100) | | Tên nhân viên phòng ban khác tiếp nhận. |
 | `processing_start_time`| DATETIME | | Hệ thống ghi nhận tự động khi RISK bấm tiếp nhận xử lý. |
 | `completion_time` | DATETIME | | Thời gian xử lý xong (Hoàn tất hoặc Hủy). |
 | `resolution_reason` | TEXT | | Ghi chú/Lý do của RISK khi chuyển trạng thái sang Hoàn tất hoặc Hủy (để báo CTE). |
@@ -46,7 +48,17 @@ Lưu danh sách động các lý do để hiển thị trên Dropdown chọn lú
 | `description` | VARCHAR(255) | | Mô tả hiển thị (VD: "Giao dịch không chính chủ", "Máy ATM không nhả tiền"). |
 | `is_active` | BOOLEAN | | Xác định lý do này còn đang được áp dụng dùng hay không (`True`/`False`). |
 
-### 1.3. Bảng `ticket_history` (Lịch sử Trạng thái) (Khuyến nghị thêm vào để Log Audit)
+### 1.3. Bảng `departments` (Danh mục Phòng ban)
+Lưu danh sách các phòng ban trong hệ thống để phục vụ việc chuyển tiếp linh hoạt.
+
+| Tên trường (Field) | Kiểu dữ liệu (Type) | Khóa (Key) | Mô tả & Ý nghĩa (Description) |
+|---|---|---|---|
+| `id` | INT | PK | ID tự tăng. |
+| `code` | VARCHAR(50) | UNIQUE | Mã chuẩn của phòng ban (VD: `RISK_TEAM`, `CARD_DEPT`, `ACCOUNTING`). |
+| `name` | VARCHAR(255) | | Tên hiển thị (VD: "Khối Quản trị Rủi ro", "Phòng Thẻ", "Phòng Kế toán"). |
+| `is_active` | BOOLEAN | | Xác định phòng ban này có đang hiển thị để nhận case hay không (`True`/`False`). |
+
+### 1.4. Bảng `ticket_history` (Lịch sử Trạng thái) (Khuyến nghị thêm vào để Log Audit)
 Giúp theo vết và truy vết vòng đời của Ticket bị can thiệp bởi những ai.
 
 | Tên trường (Field) | Kiểu dữ liệu (Type) | Khóa | Mô tả & Ý nghĩa |
@@ -96,8 +108,13 @@ Khi KH gọi điện lên, CTE sẽ thao tác qua Web (Hệ thống Internal/CRM
   - `processing_start_time` = Current Time.
   *(Kể từ bước này nếu KH query theo Luồng 1 sẽ trả về Kịch bản 2)*
 - **Bước 3 (Off-system Ops)**: RISK kiểm tra chéo bằng các công cụ nội bộ / Verify với Switch (Napas/Visa), Camera ATM...
-- **Bước 4 (Trả kết quả)**: Sau khi rõ kết quả xử lý, NV RISK click vào Ticket, chọn Trạng thái cuối: "Xử lý hoàn tất" (`COMPLETED`) hoặc "Hủy Tra soát" (`CANCELLED`). Đồng thời form bắt buộc nhập `Lý do` (`resolution_reason`). Bấm Cập nhật.
-- **Bước 5 (Thông báo)**: Backend update trạng thái & `completion_time`, lưu lại lý do. Trigger System một Email Worker bắn thông báo tóm tắt qua email cho (nhóm) CTE.
+- **Bước 4 (Quyết định hoặc Chuyển tiếp)**: 
+  - **Trường hợp tự xử lý được**: Sau khi rõ kết quả xử lý, NV RISK click vào Ticket, chọn Trạng thái cuối: "Xử lý hoàn tất" (`COMPLETED`) hoặc "Hủy Tra soát" (`CANCELLED`). Đồng thời form bắt buộc nhập `Lý do` (`resolution_reason`). Bấm Cập nhật.
+  - **Trường hợp cần phòng ban khác hỗ trợ (Phòng Thẻ, Kế toán...)**: NV RISK gán lệnh chuyển tiếp, hệ thống hiển thị Dropdown danh sách phòng ban (từ bảng `departments`). Backend cập nhật `assigned_unit` = `{Mã phòng ban đã chọn}`. Hệ thống gửi Email đến phòng ban tương ứng để nhận thông tin.
+- **Bước 5 (Phòng ban phối hợp tiếp nhận & Xử lý nếu được chuyển tiếp)**: 
+  - NV / Người xử lý của Phòng ban (ví dụ: Phòng Thẻ) tiếp nhận ca từ hàng chờ của phòng mình. Đưa ticket vào xử lý.
+  - Sau khi xử lý xong, Phòng ban này cập nhật lại trạng thái thành "Xử lý hoàn tất" (`COMPLETED`) hoặc "Từ chối xử lý" (`CANCELLED`) kèm theo lý do giải quyết.
+- **Bước 6 (Thông báo)**: Dù RISK hay phòng ban phối hợp kết thúc ca, Backend đều update trạng thái & `completion_time`, lưu lại lý do. Trigger System một Email Worker bắn thông báo tóm tắt qua email cho (nhóm) CTE nắm thông tin.
 
 ### 2.4. Luồng 4: CTE hoàn thiện và đóng Vòng đời
 - **Bước 1 (Check Alert)**: CTE nhận email báo cáo trạng thái hoàn tất, hoặc đăng nhập vào Dashboard Tab "Vé chờ báo KH" (lọc condition `COMPLETED`/`CANCELLED`).
@@ -136,10 +153,12 @@ CREATE TABLE dispute_tickets (
     transaction_type VARCHAR(20),
     reason_code VARCHAR(50) REFERENCES dispute_reasons(code),
     status VARCHAR(30) NOT NULL DEFAULT 'NEW',
-    assigned_unit VARCHAR(100),
+    assigned_unit VARCHAR(50), -- có thể tham chiếu REFERENCES departments(code)
     cte_creator_id INT,
     risk_assignee_id INT,
     risk_assignee_name VARCHAR(100),
+    forwarded_assignee_id INT,
+    forwarded_assignee_name VARCHAR(100),
     processing_start_time TIMESTAMP,
     completion_time TIMESTAMP,
     resolution_reason TEXT,
@@ -161,11 +180,25 @@ CREATE TABLE ticket_history (
     note TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 4. Bảng Danh mục Phòng ban
+CREATE TABLE departments (
+    id SERIAL PRIMARY KEY,
+    code VARCHAR(50) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE
+);
 ```
 
 ### 3.2. DML - Script dữ liệu mẫu (Dummy Data)
 
 ```sql
+-- Insert danh mục phòng ban
+INSERT INTO departments (code, name, is_active) VALUES
+('RISK_TEAM', 'Khối Quản trị Rủi ro', TRUE),
+('FRAUD_TEAM', 'Bộ phận Chống Gian lận', TRUE),
+('CARD_DEPT', 'Phòng Thẻ', TRUE),
+('ACCOUNTING', 'Phòng Kế toán', TRUE);
 -- Insert danh mục lý do
 INSERT INTO dispute_reasons (code, description, is_active) VALUES
 ('UNAUTHORIZED_TXN', 'Giao dịch không chính chủ / Không thực hiện giao dịch', TRUE),

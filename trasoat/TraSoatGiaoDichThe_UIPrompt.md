@@ -85,18 +85,29 @@ Tài liệu này cung cấp các prompt chi tiết để đưa vào các công c
 >   - Display all transaction and dispute details clearly in a card (Card Mask, LOC, Merchant, Reason, Auth Code). 
 >   - Below it, an 'Audit Log / History' timeline showing when it was created by the CTE and when it was picked up by the Risk agent.
 > - **Right Column (1/3 width) - Action Panel (Trả kết quả):**
->   - A form for the Risk Agent to close the case.
->   - Radio buttons or Select for Final Verdict: 'Xử lý hoàn tất' (Completed/Approved) or 'Hủy Tra soát' (Cancelled/Rejected).
+>   - A form for the Risk Agent to close the case or escalate.
+>   - Radio buttons or Select for Final Verdict/Action: 'Xử lý hoàn tất' (Completed/Approved), 'Hủy Tra soát' (Cancelled/Rejected), hoặc 'Chuyển cho phòng ban khác' (Escalate to other Dept).
+>   - *Conditional Dropdown*: If 'Chuyển cho phòng ban khác' is selected, show a dropdown list of Departments (e.g., Card Dept, Accounting) for the agent to select.
 >   - A mandatory Textarea for `Lý do / Ghi chú giải quyết` (Resolution note). Example placeholder: 'Describe the verification outcome with VISA/Mastercard...'.
->   - A large primary button: 'Chốt Kết Quả' (Submit Resolution).
+>   - A large primary button: 'Chốt Kết Quả' (Submit Resolution / Escalate).
 > 
 > **Style:** Split-screen or card-based layout to separate read-only data from the interactive action form. Professional, clear typography. timeline component should look sleek."
 
 ---
 
-## 4. Màn hình CTE Đóng vòng đời (Post-Resolution)
+## 4. Nhóm Màn hình Dành cho Phòng ban Phối hợp (CARD DEPT, ACCOUNTING...)
 
-### 4.1. Màn hình Danh sách Vé chờ Báo KH (CTE Outbound Queue)
+**(Tiết kiệm nỗ lực thiết kế: Sử dụng lại thiết kế Dashboard của Khối Rủi Ro ở phần 3, bao gồm màn hình Queue và màn hình Chi tiết).**
+**- Đặc tả thay đổi nhỏ:** 
+  - Màn hình Queue lọc các ca được gán cho Phòng ban của User đăng nhập (VD: `assigned_unit` = `CARD_DEPT` nếu là nhân viên Thẻ).
+  - Tên Dashboard đổi tương ứng theo tên phòng ban (VD: "Workspace Phòng Thẻ", "Workspace Phòng Kế toán").
+  - Màn hình Chi tiết: Action Panel (Trả kết quả) của Phòng ban phối hợp chỉ có 2 option: 'Xử lý hoàn tất' (Completed) hoặc 'Từ chối xử lý' (Rejected). Bắt buộc nhập lý do vào Textarea và bấm nút "Chốt Kết Quả".
+
+---
+
+## 5. Màn hình CTE Đóng vòng đời (Post-Resolution)
+
+### 5.1. Màn hình Danh sách Vé chờ Báo KH (CTE Outbound Queue)
 **Prompt:**
 > "Design a tab or view in the Customer Service (CTE) CRM Dashboard called 'Vé chờ báo KH' (Tickets pending customer notification).
 > 

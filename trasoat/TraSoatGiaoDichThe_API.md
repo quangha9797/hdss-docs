@@ -73,7 +73,22 @@ Tài liệu này định nghĩa danh sách các API cần thiết để phục v
   }
   ```
 
-### 2.2. API Tạo mới Yêu cầu Tra soát (Dành cho CTE)
+### 2.2. API Lấy Danh mục Phòng ban Phối hợp
+- **Mục đích**: Phục vụ render Dropdown list chọn phòng ban khi NV RISK muốn chuyển tiếp ticket.
+- **Endpoint**: `GET /api/v1/internal/departments`
+- **Request**: Không có.
+- **Response**:
+  ```json
+  {
+    "code": "SUCCESS",
+    "data": [
+      { "code": "CARD_DEPT", "name": "Phòng Thẻ" },
+      { "code": "ACCOUNTING", "name": "Phòng Kế toán" }
+    ]
+  }
+  ```
+
+### 2.3. API Tạo mới Yêu cầu Tra soát (Dành cho CTE)
 - **Mục đích**: Ghi nhận một Ticket mới xuống DB (Sau khi CTE đã lấy thông tin từ lịch sử GD hoặc nhập tay).
 - **Endpoint**: `POST /api/v1/internal/disputes`
 - **Luồng xử lý (Flow)**:
@@ -110,7 +125,7 @@ Tài liệu này định nghĩa danh sách các API cần thiết để phục v
   }
   ```
 
-### 2.3. API Danh sách Ticket (Dành cho Dashboard RISK & CTE)
+### 2.4. API Danh sách Ticket (Dành cho Dashboard RISK & CTE)
 - **Mục đích**: Lấy danh sách ticket cho các màn hình theo dõi công việc. Hỗ trợ lọc theo trạng thái, ngày tháng, phòng ban.
 - **Endpoint**: `GET /api/v1/internal/disputes`
 - **Request Params**:
@@ -118,7 +133,7 @@ Tài liệu này định nghĩa danh sách các API cần thiết để phục v
   - `page`: 1, `limit`: 20
 - **Response**: Trả về Array Data cấu trúc Pagination chuẩn tương ứng với các cột trên màn hình.
 
-### 2.4. API Tiếp nhận Ticket (Dành cho RISK)
+### 2.5. API Tiếp nhận Ticket (Dành cho RISK)
 - **Mục đích**: Team RISK quyết định bắt đầu điều tra một Ticket được gán.
 - **Endpoint**: `POST /api/v1/internal/disputes/{id}/assign`
 - **Luồng xử lý**:
@@ -128,8 +143,23 @@ Tài liệu này định nghĩa danh sách các API cần thiết để phục v
   4. Log vào `ticket_history`.
 - **Response**: Chuyển trạng thái thành CÔNG, trả lại Object Ticket đã cập nhật.
 
-### 2.5. API Cập nhật Kết quả Xử lý (Dành cho RISK)
-- **Mục đích**: Đóng tác vụ trên cương vị Team RISK, chốt hướng giải quyết của Case.
+### 2.6. API Chuyển tiếp Ticket cho Phòng ban khác (Dành cho RISK)
+- **Mục đích**: NV RISK gán/chuyển ca xử lý sang cho một phòng ban khác (VD: Phòng Thẻ, Kế toán) khi cần hỗ trợ.
+- **Endpoint**: `POST /api/v1/internal/disputes/{id}/escalate`
+- **Request**:
+  ```json
+  {
+    "department_code": "CARD_DEPT" // Mã phòng ban (lấy từ API danh mục)
+  }
+  ```
+- **Luồng xử lý**:
+  1. NV Risk chọn phòng ban và bấm chuyển tiếp. Backend validate và cập nhật `assigned_unit` = `department_code`.
+  2. Ghi log vào bảng `ticket_history`.
+  3. Gửi Email thông báo cho phòng ban được chọn.
+- **Response**: Code `SUCCESS`.
+
+### 2.7. API Cập nhật Kết quả Xử lý (Dành cho RISK / Phòng ban khác)
+- **Mục đích**: Đóng tác vụ trên cương vị Team RISK hoặc Phòng Thẻ, chốt hướng giải quyết của Case.
 - **Endpoint**: `PUT /api/v1/internal/disputes/{id}/resolve`
 - **Luồng xử lý**:
   1. NV Risk nhập lý do trả lời, chọn Hủy/Hoàn tất. Request gửi lên Backend.
@@ -145,7 +175,7 @@ Tài liệu này định nghĩa danh sách các API cần thiết để phục v
   }
   ```
 
-### 2.6. API Đóng Vòng đời Ticket (Dành cho CTE)
+### 2.8. API Đóng Vòng đời Ticket (Dành cho CTE)
 - **Mục đích**: CTE cập nhật trạng thái Ticket sau khi đã gọi thông báo kết quả cho khách hàng thành công.
 - **Endpoint**: `PUT /api/v1/internal/disputes/{id}/close`
 - **Luồng xử lý**:
@@ -155,7 +185,7 @@ Tài liệu này định nghĩa danh sách các API cần thiết để phục v
 - **Request**: Body trống hoặc truyền thêm node "note" ghi chú nhỏ nếu yêu cầu.
 - **Response**: Phản hồi code thành công `SUCCESS`.
 
-### (Tùy chọn) 2.7. API Integration Lấy Lịch Sử Giao Dịch
+### (Tùy chọn) 2.9. API Integration Lấy Lịch Sử Giao Dịch
 - **Mục đích**: Connect hệ thống thẻ để lấy LSGD nhằm auto-fill form khi tạo chức năng. (Chỉ là Proxy API gọi xuống Core).
 - **Endpoint**: `GET /api/v1/internal/integration/card/transactions`
 - **QueryParams**: `card_number` hoặc `customer_id`, `date`

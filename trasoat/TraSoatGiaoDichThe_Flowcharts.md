@@ -104,12 +104,32 @@ sequenceDiagram
     Ext-->>RISK: Xác nhận đây là giao dịch gian lận thật
     Note over RISK,Ext: Off-system flow
 
-    RISK->>API: Chọn "Xử lý hoàn tất", nhập "Lý do", Bấm Chốt
-    activate API
-    API->>DB: Update status='COMPLETED', resolution_reason, completion_time
-    DB-->>API: OK
-    API-->>RISK: Đóng Ticket trên màn hình RISK
-    deactivate API
+    alt RISK Tự xử lý được
+        RISK->>API: Chọn "Xử lý hoàn tất", nhập "Lý do", Bấm Chốt
+        activate API
+        API->>DB: Update status='COMPLETED', resolution_reason, completion_time
+        DB-->>API: OK
+        API-->>RISK: Đóng Ticket trên màn hình RISK
+        deactivate API
+    else Cần phòng ban khác hỗ trợ
+        RISK->>API: Chọn "Chuyển xử lý", chọn Phòng ban (từ dropdown)
+        activate API
+        API->>DB: Update assigned_unit='dept_code'
+        API--)Ext: Gửi Email báo cho phòng ban tương ứng
+        DB-->>API: OK
+        API-->>RISK: Chuyển khỏi hàng chờ của RISK
+        deactivate API
+        
+        Note over Ext: Phòng ban phối hợp nhận Email và vào hệ thống
+        Ext->>API: Phòng ban phối hợp Tiếp nhận và Xử lý
+        API->>DB: Update forwarded_assignee_id
+        Ext->>API: Chọn "Xử lý hoàn tất" hoặc "Từ chối xử lý", nhập Lý do
+        activate API
+        API->>DB: Update status='COMPLETED'/'CANCELLED', resolution_reason
+        DB-->>API: OK
+        API-->>Ext: Đóng Ticket trên Dashboard của phòng ban đó
+        deactivate API
+    end
 ```
 
 ---
