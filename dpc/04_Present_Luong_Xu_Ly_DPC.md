@@ -55,14 +55,14 @@ flowchart LR
         B1{Kiểm tra CCCD có tồn tại?}
         B2(Tồn tại: Cache Profile cho TVV)
         B3(Chưa có: Cấp mã UUIDv7 tham chiếu mới)
-        B4>🎯 Khởi tạo DPC: 00XHX1]
+        B4[🎯 Khởi tạo DPC: 00XHX1]
         
         B1 -->|Đã có CCCD| B2
         B1 -->|CCCD mới| B3
         B3 --> B4
         
         %% Note giải thích Trigger
-        note1>📌 Trigger: Tạo mới Profile<br/>- Vị trí 1: `0` (KH mới)<br/>- Vị trí 2: `0` (Chưa vay)<br/>- Vị trí 4: `H` (Nguồn HPO)<br/>- Vị trí 6: `1` (Ver 1)]
+        note1[📌 Trigger: Tạo mới Profile<br/>- Vị trí 1: 0 KH mới<br/>- Vị trí 2: 0 Chưa vay<br/>- Vị trí 4: H Nguồn HPO<br/>- Vị trí 6: 1 Ver 1]
         B4 -.- note1
     end
 
@@ -88,12 +88,12 @@ flowchart LR
     subgraph CU [⚖️ Hệ thống CU Tools]
         direction TB
         C1(Tiếp nhận đơn) --> C2(Duyệt đơn: Xác định Vay Tiền Mặt)
-        C3>🔥 Cập nhật DPC mới: 01XHX1]
+        C3[🔥 Cập nhật DPC mới: 01XHX1]
         
         C1 --> C2 --> C3
         
         %% Note giải thích Trigger
-        note2>📌 Trigger: Duyệt đơn vay Tiền mặt<br/>- Vị trí 2: Update thành `1`<br/>(Đang có 1 khoản vay tiền mặt)]
+        note2[📌 Trigger: Duyệt đơn vay Tiền mặt<br/>- Vị trí 2: Update thành 1<br/> Đang có 1 khoản vay tiền mặt ]
         C3 -.- note2
     end
 
@@ -112,7 +112,7 @@ flowchart LR
         S1(Chấm điểm dư nợ/Rủi ro) --> S2{Tình trạng thanh toán}
         S3(Tất toán chu đáo / Ổn định)
         S4(Đánh giá Vị trí 5 = A, Vị trí 2 = S)
-        S5>🌟 Cập nhật DPC: 0SXHA1]
+        S5[🌟 Cập nhật DPC: 0SXHA1]
         
         S6(Nợ thiếu / Chậm trễ)
         S7(Đánh giá rủi ro Vị trí 5 = B,C,D,F)
@@ -121,7 +121,7 @@ flowchart LR
         S2 -->|Thiếu nợ| S6 --> S7
         
         %% Note giải thích Trigger
-        note3>📌 Trigger: Tất toán thành công<br/>- Vị trí 2: Update thành `S` (Settled)<br/>- Vị trí 5: Update thành `A` (Rủi ro rất thấp)]
+        note3[📌 Trigger: Tất toán thành công<br/>- Vị trí 2: Update thành S Settled<br/>- Vị trí 5: Update thành A Rủi ro rất thấp]
         S5 -.- note3
     end
 ```
@@ -182,12 +182,12 @@ flowchart LR
         direction TB
         B1{Quét đối chiếu CCCD}
         B2(KH Cũ từ luồng 1: Trích xuất UUIDv7)
-        B3>🔄 Kế thừa DPC cũ: 0SXHA1]
+        B3[🔄 Kế thừa DPC cũ: 0SXHA1]
         
         B1 -->|Khớp TT Hệ thống| B2 --> B3
         
         %% Note giải thích Trigger
-        note4>📌 Trigger: Nhận diện KH cũ<br/>- Vị trí 2: `S` (Kế thừa trạng thái đã thanh toán)<br/>- Vị trí 5: `A` (Kế thừa Rating hiện tại)]
+        note4[📌 Trigger: Nhận diện KH cũ<br/>- Vị trí 2: S Kế thừa trạng thái đã thanh toán<br/>- Vị trí 5: A Kế thừa Rating hiện tại]
         B3 -.- note4
     end
 
@@ -215,12 +215,12 @@ flowchart LR
     subgraph CC [💳 Hệ thống Thẻ Phát hành]
         direction TB
         CC1(Tiếp nhận nghiệp vụ Phát hành) --> CC2(Phê duyệt Thẻ & Issue Status)
-        CC3>🔥 Cập nhật DPC Thẻ: 0UXHA1]
+        CC3[🔥 Cập nhật DPC Thẻ: 0UXHA1]
         
         CC1 --> CC2 --> CC3
         
         %% Note giải thích Trigger
-        note5>📌 Trigger: Thẻ được phê duyệt<br/>- Vị trí 2: Update thành `U`<br/>(Đã tất toán khoản trước & Đang có thẻ)]
+        note5[📌 Trigger: Thẻ được phê duyệt<br/>- Vị trí 2: Update thành U<br/> Đã tất toán khoản trước và Đang có thẻ ]
         CC3 -.- note5
     end
 
