@@ -60,6 +60,10 @@ flowchart LR
         B1 -->|Đã có CCCD| B2
         B1 -->|CCCD mới| B3
         B3 --> B4
+        
+        %% Note giải thích Trigger
+        note1>📌 Trigger: Tạo mới Profile\n- Vị trí 1: `0` (KH mới)\n- Vị trí 2: `0` (Chưa vay)\n- Vị trí 4: `H` (Nguồn HPO)\n- Vị trí 6: `1` (Ver 1)]
+        B4 -.- note1
     end
 
     A2 -. API .-> B1
@@ -87,6 +91,10 @@ flowchart LR
         C3>🔥 Cập nhật DPC mới: 01XHX1]
         
         C1 --> C2 --> C3
+        
+        %% Note giải thích Trigger
+        note2>📌 Trigger: Duyệt đơn vay Tiền mặt\n- Vị trí 2: Update thành `1`\n(Đang có 1 khoản vay tiền mặt)]
+        C3 -.- note2
     end
 
     BE -. Giao tiếp API .-> INDUS
@@ -111,6 +119,10 @@ flowchart LR
         
         S2 -->|Đủ số dư| S3 --> S4 --> S5
         S2 -->|Thiếu nợ| S6 --> S7
+        
+        %% Note giải thích Trigger
+        note3>📌 Trigger: Tất toán thành công\n- Vị trí 2: Update thành `S` (Settled)\n- Vị trí 5: Update thành `A` (Rủi ro rất thấp)]
+        S5 -.- note3
     end
 ```
 </details>
@@ -173,6 +185,10 @@ flowchart LR
         B3>🔄 Kế thừa DPC cũ: 0SXHA1]
         
         B1 -->|Khớp TT Hệ thống| B2 --> B3
+        
+        %% Note giải thích Trigger
+        note4>📌 Trigger: Nhận diện KH cũ\n- Vị trí 2: `S` (Kế thừa trạng thái đã thanh toán)\n- Vị trí 5: `A` (Kế thừa Rating hiện tại)]
+        B3 -.- note4
     end
 
     K2 -. Thao tác .-> A1
@@ -202,6 +218,10 @@ flowchart LR
         CC3>🔥 Cập nhật DPC Thẻ: 0UXHA1]
         
         CC1 --> CC2 --> CC3
+        
+        %% Note giải thích Trigger
+        note5>📌 Trigger: Thẻ được phê duyệt\n- Vị trí 2: Update thành `U`\n(Đã tất toán khoản trước & Đang có thẻ)]
+        CC3 -.- note5
     end
 
     B4 -. API Request .-> I1
