@@ -62,7 +62,7 @@ flowchart LR
         B3 --> B4
         
         %% Note giải thích Trigger
-        note1>📌 Trigger: Tạo mới Profile\n- Vị trí 1: `0` (KH mới)\n- Vị trí 2: `0` (Chưa vay)\n- Vị trí 4: `H` (Nguồn HPO)\n- Vị trí 6: `1` (Ver 1)]
+        note1>📌 Trigger: Tạo mới Profile<br/>- Vị trí 1: `0` (KH mới)<br/>- Vị trí 2: `0` (Chưa vay)<br/>- Vị trí 4: `H` (Nguồn HPO)<br/>- Vị trí 6: `1` (Ver 1)]
         B4 -.- note1
     end
 
@@ -93,7 +93,7 @@ flowchart LR
         C1 --> C2 --> C3
         
         %% Note giải thích Trigger
-        note2>📌 Trigger: Duyệt đơn vay Tiền mặt\n- Vị trí 2: Update thành `1`\n(Đang có 1 khoản vay tiền mặt)]
+        note2>📌 Trigger: Duyệt đơn vay Tiền mặt<br/>- Vị trí 2: Update thành `1`<br/>(Đang có 1 khoản vay tiền mặt)]
         C3 -.- note2
     end
 
@@ -121,7 +121,7 @@ flowchart LR
         S2 -->|Thiếu nợ| S6 --> S7
         
         %% Note giải thích Trigger
-        note3>📌 Trigger: Tất toán thành công\n- Vị trí 2: Update thành `S` (Settled)\n- Vị trí 5: Update thành `A` (Rủi ro rất thấp)]
+        note3>📌 Trigger: Tất toán thành công<br/>- Vị trí 2: Update thành `S` (Settled)<br/>- Vị trí 5: Update thành `A` (Rủi ro rất thấp)]
         S5 -.- note3
     end
 ```
@@ -187,7 +187,7 @@ flowchart LR
         B1 -->|Khớp TT Hệ thống| B2 --> B3
         
         %% Note giải thích Trigger
-        note4>📌 Trigger: Nhận diện KH cũ\n- Vị trí 2: `S` (Kế thừa trạng thái đã thanh toán)\n- Vị trí 5: `A` (Kế thừa Rating hiện tại)]
+        note4>📌 Trigger: Nhận diện KH cũ<br/>- Vị trí 2: `S` (Kế thừa trạng thái đã thanh toán)<br/>- Vị trí 5: `A` (Kế thừa Rating hiện tại)]
         B3 -.- note4
     end
 
@@ -220,7 +220,7 @@ flowchart LR
         CC1 --> CC2 --> CC3
         
         %% Note giải thích Trigger
-        note5>📌 Trigger: Thẻ được phê duyệt\n- Vị trí 2: Update thành `U`\n(Đã tất toán khoản trước & Đang có thẻ)]
+        note5>📌 Trigger: Thẻ được phê duyệt<br/>- Vị trí 2: Update thành `U`<br/>(Đã tất toán khoản trước & Đang có thẻ)]
         CC3 -.- note5
     end
 
