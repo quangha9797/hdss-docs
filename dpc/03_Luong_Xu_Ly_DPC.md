@@ -51,11 +51,11 @@ sequenceDiagram
         SYS->>SYS: Chấm điểm lại dư nợ & Cập nhật rủi ro khách hàng
         alt Thanh toán Tất toán đủ số dư
             SYS->>SYS: Cập nhật chỉ số tốt
-            note bottom of SYS: Do tất toán chu đáo, ít rủi ro:<br/>Cập nhật [Vị trí 5] = A (Rất thấp)<br/>Cập nhật [Vị trí 2] = S (Đã settled, để mời lại)
+            note over SYS: Do tất toán chu đáo, ít rủi ro:<br/>Cập nhật [Vị trí 5] = A (Rất thấp)<br/>Cập nhật [Vị trí 2] = S (Đã settled, để mời lại)
             note over SYS: => DPC chuẩn sẽ chuyển thành: 0SXHA1
         else Tình huống thanh toán thiếu / Chậm nợ
             SYS->>SYS: Cập nhật chỉ số rủi ro
-            note bottom of SYS: Cập nhật [Vị trí 5] thay đổi linh động thành B, C, D, hoặc F (Nợ xấu)
+            note over SYS: Cập nhật [Vị trí 5] thay đổi linh động thành B, C, D, hoặc F (Nợ xấu)
         end
     end
 ```
@@ -88,7 +88,7 @@ sequenceDiagram
     CV->>CV: Hoàn tất eKYC cho KH
     CV->>BE: Đẩy thông tin xác nhận qua BE
     
-    note over APP, BE: Xử lý bảo mật thông tin nội bộ
+    note over CV, BE: Xử lý bảo mật thông tin nội bộ
     alt CCCD kiểm tra có tồn tại trong hệ thống cũ
         BE->>BE: Trích xuất UUIDv7 và Cache lại Thông tin cho TVV
         note right of BE: DPC hiện tại thừa hưởng từ lần vay trước là: 0SXHA1
