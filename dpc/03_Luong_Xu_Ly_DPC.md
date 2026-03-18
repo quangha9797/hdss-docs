@@ -35,7 +35,7 @@ sequenceDiagram
         note right of BE: Giúp TVV nhận diện & hỗ trợ ngay
     else CCCD kiểm tra mới / chưa có
         BE->>BE: Cấp mã UUIDv7 tham chiếu mới
-        note right of BE: Khởi tạo giá trị DPC:<br/>00XHX1
+        note right of BE: 🎯 Khởi tạo giá trị DPC:<br/>**[ 00XHX1 ]**
     end
 
     BE->>IND: Gọi API Tạo mã truy xuất & Hợp đồng DB
@@ -44,7 +44,9 @@ sequenceDiagram
 
     BE->>CUT: Đẩy đơn chạy qua Thẩm định
     CUT->>CUT: Duyệt đơn & Xác định lại Loai đơn Vay
-    note over CUT: Do là đơn Vay Tiền Mặt:<br/>Cập nhật [Vị trí 2] = 1<br/>=> DPC mới nhất: 01XHX1 
+    rect rgb(255, 250, 220)
+    note over CUT: Do là đơn Vay Tiền Mặt:<br/>Cập nhật [Vị trí 2] = 1<br/>🔥 **DPC MỚI NHẤT: [ 01XHX1 ]**
+    end
     
     note over SYS: Sự kiện về dài hạn (Thanh toán định kỳ)
     loop Quá trình theo dõi Thanh toán / Tất toán khoản vay
@@ -52,7 +54,9 @@ sequenceDiagram
         alt Thanh toán Tất toán đủ số dư
             SYS->>SYS: Cập nhật chỉ số tốt
             note over SYS: Do tất toán chu đáo, ít rủi ro:<br/>Cập nhật [Vị trí 5] = A (Rất thấp)<br/>Cập nhật [Vị trí 2] = S (Đã settled, để mời lại)
-            note over SYS: => DPC chuẩn sẽ chuyển thành: 0SXHA1
+            rect rgb(240, 255, 240)
+            note over SYS: 🌟 **DPC MỚI NHẤT: [ 0SXHA1 ]**
+            end
         else Tình huống thanh toán thiếu / Chậm nợ
             SYS->>SYS: Cập nhật chỉ số rủi ro
             note over SYS: Cập nhật [Vị trí 5] thay đổi linh động thành B, C, D, hoặc F (Nợ xấu)
@@ -91,9 +95,10 @@ sequenceDiagram
     note over CV, BE: Xử lý bảo mật thông tin nội bộ
     alt CCCD kiểm tra có tồn tại trong hệ thống cũ
         BE->>BE: Trích xuất UUIDv7 và Cache lại Thông tin cho TVV
-        note right of BE: DPC hiện tại thừa hưởng từ lần vay trước là: 0SXHA1
+        note right of BE: 🔄 **DPC thừa hưởng từ vay cũ: [ 0SXHA1 ]**
     else CCCD kiểm tra mới / chưa có (Trường hợp ngoài kịch bản)
-        BE->>BE: Generate UUIDv7 + DPC mặc định 00XXA1
+        BE->>BE: Generate UUIDv7 + DPC mặc định
+        note right of BE: 🎯 **Khởi tạo DPC mặc định: [ 00XXA1 ]**
     end
 
     BE->>IND: Yêu cầu xử lý tạo giao kèo
@@ -102,11 +107,14 @@ sequenceDiagram
 
     BE->>CUT: Đẩy đơn chạy qua Thẩm định
     CUT->>CUT: Duyệt đơn Thẻ & Xác nhận lại DPC Profile cũ
-    note over CUT: Khách đang có DPC là 0SXHA1<br/>(Đoạn này xác nhận KH đã settle đơn vị vay trước)
+    note over CUT: 🔄 **Khách đang có DPC: [ 0SXHA1 ]**<br/>(Đoạn này xác nhận KH đã settle đơn vị vay trước)
     
     CUT->>CC: Ủy quyền Yêu cầu Phát hành Thẻ tín dụng
     CC->>CC: Xử trị nghiệp vụ Phát hành Thẻ
-    note over CC: Thẻ được phê duyệt & Issue:<br/>Hệ thống cập nhật [Vị trí 2] = U<br/>(Đã tất toán vay cũ + Có thẻ mới)<br/>=> DPC mới nhất Update thành: 0UXHA1
+    note over CC: Thẻ được phê duyệt & Issue:<br/>Hệ thống cập nhật [Vị trí 2] = U<br/>(Đã tất toán vay cũ + Có thẻ mới)
+    rect rgb(255, 250, 220)
+    note over CC: 🔥 **DPC MỚI NHẤT UPDATE THÀNH: [ 0UXHA1 ]**
+    end
 ```
 
 ### 2. Sự tiến hóa chuỗi DPC trong Luồng 2
