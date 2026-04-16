@@ -58,28 +58,28 @@ Biểu diễn tổng quát luồng các bước từ lúc bắt đầu cho đế
 ```mermaid
 flowchart TD
     %% Định nghĩa các bước chính
-    subgraph Bước 1: Khởi tạo thẻ
-        A[HPO gọi Card Service phát hành thẻ]
-        A -- Thành công --> B((Lấy thông tin: <br/>LOC_ACCT, LOAN_NO))
-        B --> C[(Lưu vào bảng<br/>LK_CRE_CARD_LOAN)]
-        C --> D[(Lưu vào bảng<br/>LK_AUDIT_CARD)]
+    subgraph step1 ["Bước 1: Khởi tạo thẻ"]
+        A["HPO gọi Card Service phát hành thẻ"]
+        A -- "Thành công" --> B(("Lấy thông tin: <br/>LOC_ACCT, LOAN_NO"))
+        B --> C[("Lưu vào bảng<br/>LK_CRE_CARD_LOAN")]
+        C --> D[("Lưu vào bảng<br/>LK_AUDIT_CARD")]
     end
 
-    subgraph Bước 2: Tương tác đối tác
-        D --> E[Tổng hợp các khoản vay <br/>chưa trả hết nợ gốc]
-        E -- Query LK_CRE_CARD_LOAN --> F(Gửi danh sách <br/>cho đối tác / Anh Hải)
+    subgraph step2 ["Bước 2: Tương tác đối tác"]
+        D --> E["Tổng hợp các khoản vay <br/>chưa trả hết nợ gốc"]
+        E -- "Query LK_CRE_CARD_LOAN" --> F("Gửi danh sách <br/>cho đối tác / Anh Hải")
     end
 
-    subgraph Bước 3: Đổ dữ liệu trả nợ định kỳ
-        F --> G[Đối tác bóc tách & cung cấp Data]
-        G --> H[(Lưu vào bảng<br/>LK_PRIN_BALANCE)]
+    subgraph step3 ["Bước 3: Đổ dữ liệu trả nợ định kỳ"]
+        F --> G["Đối tác bóc tách & cung cấp Data"]
+        G --> H[("Lưu vào bảng<br/>LK_PRIN_BALANCE")]
     end
 
-    subgraph Bước 4: Xử lý nâng hạn mức thẻ (Tự động/Job)
-        H --> I[Hệ thống quét dữ liệu nợ gốc của đối tác]
-        I -- Tính lại Limit --> J[(Lưu vào bảng<br/>LK_CHANGE_LIMIT_CARD)]
-        J --> K[(Lưu lịch sử mới vào <br/>LK_AUDIT_CARD)]
-        K --> L[(Cập nhật MONITOR_LIMIT <br/>vào LK_CRE_CARD_LOAN)]
+    subgraph step4 ["Bước 4: Xử lý nâng hạn mức thẻ (Tự động/Job)"]
+        H --> I["Hệ thống quét dữ liệu nợ gốc của đối tác"]
+        I -- "Tính lại Limit" --> J[("Lưu vào bảng<br/>LK_CHANGE_LIMIT_CARD")]
+        J --> K[("Lưu lịch sử mới vào <br/>LK_AUDIT_CARD")]
+        K --> L[("Cập nhật MONITOR_LIMIT <br/>vào LK_CRE_CARD_LOAN")]
     end
 
     %% Style cho biểu đồ
