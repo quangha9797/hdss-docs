@@ -15,29 +15,23 @@ Biểu đồ này mô tả cách hệ thống CLE tương tác với các hệ t
 ```mermaid
 flowchart LR
     subgraph Consumers[Kênh Nội Bộ & Khách hàng]
-        C1[Chạm vay]
-        C2[HPO Web/App]
-        C3[Web Tra cứu]
+        C[Chạm vay, HPO Web/App, Web Tra cứu]
     end
 
     subgraph CLE[Credit Limit Engine]
-        Engine((Hệ thống<br/>TÍNH TOÁN<br/>HẠN MỨC))
+        Engine((Hệ thống Tính Toán Hạn Mức))
     end
 
     subgraph DataSources[Các Hệ Thống Nguồn]
-        S1[Hệ thống Core Banking]
-        S2[Hệ thống Thu hồi nợ - Collection]
-        S3[Hệ thống Thẩm định - Underwriting]
-        S4[Hệ thống Tài liệu - Document]
-        S5[Hệ thống CIC]
+        S[Core Banking, Collection, Underwriting, Document, CIC]
     end
 
-    Consumers -->|Yêu cầu hạn mức - Input CCCD| Engine
-    Engine -->|Trả về hạn mức dùng được| Consumers
+    C -->|Yêu cầu hạn mức - Input CCCD| Engine
+    Engine -->|Trả về hạn mức dùng được| C
     
     KhoiRisk[Khối Risk] -->|Cấu hình công thức & biến số| Engine
     
-    DataSources -->|Đẩy dữ liệu qua CDC, API, EOD, Batch| Engine
+    S -->|Đẩy dữ liệu qua CDC, API, EOD, Batch| Engine
 ```
 
 ---
