@@ -171,40 +171,81 @@ flowchart TD
 
 ---
 
-## 5. Biểu đồ luồng cập nhật Biến số / Tham số (Data Update Flow)
+## 5. Biểu đồ Vận hành & SLA Cập nhật Dữ liệu (Dành cho Quản lý)
 
-Biểu đồ này tóm tắt cách các giá trị tham số (Demographic, Loan, Document...) được đổ vào **Parameter DB** dựa theo phương thức kỹ thuật nào (CDC, Real-time API hay Batch EOD) và kích hoạt (trigger) lúc nào. Nó giúp giải thích quá trình dữ liệu luôn được cập nhật và đồng bộ.
+Để thuận tiện trong việc báo cáo và trình bày với các cấp quản lý (C-level), quá trình cập nhật các tham số cấu thành nên hạn mức tín dụng được chia làm 2 góc nhìn: **Theo độ trễ (SLA)** và **Theo trình tự vòng đời nghiệp vụ**.
+
+### 5.1. Phân nhóm theo Độ trễ Dữ liệu (Data SLA)
+Sơ đồ này chứng minh năng lực kỹ thuật của hệ thống, làm rõ các nhóm dữ liệu được đưa vào kho lưu trữ nhanh đến mức nào, đảm bảo Engine luôn có dữ liệu mới nhất để ra quyết định hạn mức chính xác theo thời gian thực.
 
 ```mermaid
-flowchart TD
-    %% Định nghĩa các giải pháp cập nhật (Data Ingestion Mechanisms)
-    CDC["CDC Debezium (Lắng nghe thay đổi Database)"]
-    API["Internal API (Cập nhật Real-time qua Service)"]
-    EOD["Job Scheduler (Chạy EOD, 9h, 13h)"]
-    Monthly["Job Scheduler (Chạy định kỳ hàng tháng)"]
-
-    %% Định nghĩa các nhóm tham số lưu trữ
-    subgraph Params["Các Nhóm Tham Số (Parameter DB)"]
-        D_Demo["Nhóm Demographic - age, gender, marital_status..."]
-        D_LoanDisburse["Nhóm Loan (Giải ngân) - number_of_loans, max_fa"]
-        D_LoanPay["Nhóm Loan (Thanh toán) - outstanding_debt, last_payment"]
-        D_LoanEOD["Nhóm Loan (Lãi & EMI) - total_interest, living_emi"]
-        D_Review["Nhóm Document & Đánh giá - blx, COL_remark, CUN"]
-        D_CIC["Nhóm R18 - cic_r18_group"]
+flowchart LR
+    %% Định nghĩa các luồng theo SLA
+    subgraph SLA_RealTime["⚡ Luồng Tức Thời (Real-Time API)"]
+        direction TB
+        R1["KH Thanh toán nợ"] --> |Gọi API| R2["Dư nợ, Ngày thanh toán cuối"]
+        R3["Cập nhật Giấy tờ / Đánh giá"] --> |Gọi API| R4["Thông tin CUN, COL, BLX..."]
     end
 
-    %% Các luồng cập nhật dữ liệu (Data Flows)
-    
-    %% Luồng CDC
-    CDC -->|Trigger: Có Hợp đồng chuyển 'Đã Ký'| D_Demo
-    CDC -->|Trigger: Có Hợp đồng chuyển 'Đã giải ngân'| D_LoanDisburse
-    CDC -->|Trigger: Trạng thái Onboard / Đã duyệt| D_Review
+    subgraph SLA_NearRealTime["⏱️ Luồng Gần Tức Thời (CDC)"]
+        direction TB
+        N1["Hợp đồng 'Đã Ký'"] --> |Bắt Event thay đổi| N2["Độ tuổi, Giới tính, Thu nhập..."]
+        N3["Hợp đồng 'Giải Ngân'"] --> |Bắt Event thay đổi| N4["Số lượng khoản vay, Max FA"]
+    end
 
-    %% Luồng API Real-time
-    API -->|Trigger: Khách hàng thanh toán khoản vay| D_LoanPay
-    API -->|Trigger: NV nhập đánh giá COL / CUN| D_Review
+    subgraph SLA_Batch["⏳ Luồng Định Kỳ (Batch Scheduler)"]
+        direction TB
+        B1["Hệ thống chạy phân bổ EOD"] --> |Job 9h, 13h, EOD| B2["Lãi đã trả, EMI quá hạn (>3 kỳ)"]
+        B3["Hệ thống CIC"] --> |Job Hàng Tháng| B4["Nhóm nợ R18 (cic_r18_group)"]
+    end
+
+    %% Database Trung Tâm
+    DB[("Kho Dữ Liệu Trung Tâm\n(Parameter DB)")]
+
+    %% Nối các luồng vào DB
+    R2 --> DB
+    R4 --> DB
+    N2 --> DB
+    N4 --> DB
+    B2 --> DB
+    B4 --> DB
     
-    %% Luồng Batch / EOD
-    EOD -->|Trigger: Hệ thống chạy phân bổ EOD| D_LoanEOD
-    Monthly -->|Trigger: Lịch hàng tháng| D_CIC
+    %% Phủ màu để tăng tính chuyên nghiệp khi trình bày
+    style DB fill:#ffcccb,stroke:#e60000,stroke-width:3px
+    style SLA_RealTime fill:#e6ffe6,stroke:#00cc00,stroke-width:2px,stroke-dasharray: 5 5
+    style SLA_NearRealTime fill:#e6f3ff,stroke:#0066cc,stroke-width:2px,stroke-dasharray: 5 5
+    style SLA_Batch fill:#fff0e6,stroke:#ff8000,stroke-width:2px,stroke-dasharray: 5 5
+```
+
+### 5.2. Biểu đồ Trình tự Vòng đời Khách hàng (Business Sequence)
+Sơ đồ này biểu diễn vòng đời của một khách hàng đi từ lúc lên hợp đồng mới, giải ngân, thanh toán cho đến khi bị đưa vào quy trình thu hồi nợ, và làm rõ việc dữ liệu được đồng bộ vào hệ thống tự động tại các điểm chạm nào.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    
+    box Khởi tạo & Giải ngân Khoản vay
+        participant Core as Hệ Thống Core
+        participant DB as Kho Parameter DB
+    end
+    
+    Core->>DB: [Sự kiện CDC] Hợp đồng Ký thành công -> Cập nhật Nhân khẩu học
+    Core->>DB: [Sự kiện CDC] Hợp đồng Giải ngân -> Tăng số lượng khoản vay & Cập nhật Max FA
+
+    box Vận hành & Thanh toán hàng ngày
+        participant API as Payment / App
+        participant Batch as Hệ Thống EOD
+    end
+    
+    API->>DB: [API Tức thời] KH thanh toán -> Cập nhật Dư nợ ngay lập tức
+    Note over API,DB: Đảm bảo khi khách vừa thanh toán xong,<br/>hạn mức dùng được sẽ phục hồi ngay lập tức
+    
+    Batch->>DB: [Job Tự động] 9h/13h/EOD -> Quét và tính tổng Lãi & EMI quá hạn
+    
+    box Thẩm định, Thu hồi nợ & CIC
+        participant Ops as CUN / COL / CIC
+    end
+    
+    Ops->>DB: [API Tức thời] NV Thu hồi nợ / Thẩm định ghi nhận đánh giá xấu
+    Ops->>DB: [Job Định kỳ] Hàng tháng nhận biến động Nhóm nợ R18 từ CIC
 ```
