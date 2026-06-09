@@ -42,64 +42,64 @@ Biểu đồ này đi sâu vào các thành phần bên trong (Components) của
 ```mermaid
 flowchart TD
     %% Khai báo các đối tượng bên ngoài
-    Risk(Khối Risk)
-    User(Kênh tiêu thụ: Chạm vay, HPO...)
+    Risk("Khối Risk")
+    User("Kênh tiêu thụ: Chạm vay, HPO")
     
     %% Thành phần chính của CLE
     subgraph CLE_System[Credit Limit Engine System]
         
         %% Nhóm xử lý API & Tính toán
-        subgraph CoreEngine[Phân hệ Tính toán & API]
-            API[API Gateway / Query Service]
-            Calc[Limit Calculation Engine]
-            Cache[(Redis / Cache<br/>Hạn mức tạm)]
+        subgraph CoreEngine[Phân hệ Tính toán API]
+            API["API Gateway / Query Service"]
+            Calc["Limit Calculation Engine"]
+            Cache[("Redis / Cache - Hạn mức tạm")]
         end
         
         %% Nhóm quản trị công thức
         subgraph FormulaSpace[Phân hệ Quản trị Công thức]
-            FormMgr[Formula Management Service]
-            Simulator[Simulator Service]
+            FormMgr["Formula Management Service"]
+            Simulator["Simulator Service"]
         end
         
         %% Nhóm thu thập dữ liệu
         subgraph DataSpace[Phân hệ Tổng hợp Dữ liệu]
-            Ingestion[Data Ingestion / Event Streamer<br/>Kafka / RabbitMQ]
-            Worker[Data Processing Workers]
-            Scheduler[Job Scheduler<br/>Quét định kỳ 9h, 13h, EOD]
+            Ingestion["Data Ingestion - Kafka, RabbitMQ"]
+            Worker["Data Processing Workers"]
+            Scheduler["Job Scheduler - Quét định kỳ 9h, 13h, EOD"]
         end
         
         %% Cơ sở dữ liệu
         subgraph Databases[Cơ sở dữ liệu lưu trữ]
-            DB_Form[(Formula DB)]
-            DB_Param[(Parameter DB)]
+            DB_Form[("Formula DB")]
+            DB_Param[("Parameter DB")]
         end
         
         %% Kết nối nội bộ
         API -->|Request CCCD| Calc
-        Calc <-->|Lấy Cache nếu có| Cache
+        Calc -->|Lấy Cache nếu có| Cache
         Calc -->|Đọc công thức Active| DB_Form
         Calc -->|Đọc tham số mới nhất| DB_Param
         
         FormMgr -->|CRUD Công thức| DB_Form
-        FormMgr <-->|Chạy thử nghiệm| Simulator
+        FormMgr -->|Chạy thử nghiệm| Simulator
         Simulator -->|Lấy Data để test| DB_Param
         
         Ingestion --> Worker
         Scheduler --> Worker
-        Worker -->|Cập nhật / Upsert tham số| DB_Param
+        Worker -->|Cập nhật hoặc Upsert tham số| DB_Param
     end
     
     %% Nguồn dữ liệu
     subgraph Sources[Hệ thống nguồn]
-        CDC[CDC Debezium<br/>Hợp đồng, Trạng thái]
-        API_RT[API Real-time<br/>Thanh toán, Đánh giá]
-        EOD[Hệ thống EOD/Batch<br/>Phân bổ lãi, CIC]
+        CDC["CDC Debezium - Hợp đồng, Trạng thái"]
+        API_RT["API Real-time - Thanh toán, Đánh giá"]
+        EOD["Hệ thống EOD/Batch - Phân bổ lãi, CIC"]
     end
 
     %% Luồng kết nối
-    User -->|1. Yêu cầu tra cứu (CCCD)| API
+    User -->|1. Yêu cầu tra cứu CCCD| API
     Risk -->|2. Tạo / Sửa công thức| FormMgr
-    Risk -->|3. Chạy giả lập trước khi Apply| Simulator
+    Risk -->|3. Chạy giả lập| Simulator
     
     CDC --> Ingestion
     API_RT --> Ingestion
