@@ -168,3 +168,43 @@ flowchart TD
 2. **Limit Calculation Engine** sẽ lấy công thức đang trạng thái `OFFICIAL`.
 3. Engine truy xuất lấy tham số Real-time / EOD của khách hàng này trong Parameter DB.
 4. Xử lý công thức động và trả kết quả `Hạn mức dùng được` về cho hệ thống tra cứu ngay lập tức.
+
+---
+
+## 5. Biểu đồ luồng cập nhật Biến số / Tham số (Data Update Flow)
+
+Biểu đồ này tóm tắt cách các giá trị tham số (Demographic, Loan, Document...) được đổ vào **Parameter DB** dựa theo phương thức kỹ thuật nào (CDC, Real-time API hay Batch EOD) và kích hoạt (trigger) lúc nào. Nó giúp giải thích quá trình dữ liệu luôn được cập nhật và đồng bộ.
+
+```mermaid
+flowchart TD
+    %% Định nghĩa các giải pháp cập nhật (Data Ingestion Mechanisms)
+    CDC["CDC Debezium (Lắng nghe thay đổi Database)"]
+    API["Internal API (Cập nhật Real-time qua Service)"]
+    EOD["Job Scheduler (Chạy EOD, 9h, 13h)"]
+    Monthly["Job Scheduler (Chạy định kỳ hàng tháng)"]
+
+    %% Định nghĩa các nhóm tham số lưu trữ
+    subgraph Params["Các Nhóm Tham Số (Parameter DB)"]
+        D_Demo["Nhóm Demographic - age, gender, marital_status..."]
+        D_LoanDisburse["Nhóm Loan (Giải ngân) - number_of_loans, max_fa"]
+        D_LoanPay["Nhóm Loan (Thanh toán) - outstanding_debt, last_payment"]
+        D_LoanEOD["Nhóm Loan (Lãi & EMI) - total_interest, living_emi"]
+        D_Review["Nhóm Document & Đánh giá - blx, COL_remark, CUN"]
+        D_CIC["Nhóm R18 - cic_r18_group"]
+    end
+
+    %% Các luồng cập nhật dữ liệu (Data Flows)
+    
+    %% Luồng CDC
+    CDC -->|Trigger: Có Hợp đồng chuyển 'Đã Ký'| D_Demo
+    CDC -->|Trigger: Có Hợp đồng chuyển 'Đã giải ngân'| D_LoanDisburse
+    CDC -->|Trigger: Trạng thái Onboard / Đã duyệt| D_Review
+
+    %% Luồng API Real-time
+    API -->|Trigger: Khách hàng thanh toán khoản vay| D_LoanPay
+    API -->|Trigger: NV nhập đánh giá COL / CUN| D_Review
+    
+    %% Luồng Batch / EOD
+    EOD -->|Trigger: Hệ thống chạy phân bổ EOD| D_LoanEOD
+    Monthly -->|Trigger: Lịch hàng tháng| D_CIC
+```
