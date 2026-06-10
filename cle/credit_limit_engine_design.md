@@ -71,80 +71,82 @@ Tóm tắt công nghệ nền tảng:
 - **Hạ tầng (Infrastructure):** Triển khai On-Premise trên VM / Docker Swarm nội bộ.
 
 ```mermaid
-flowchart TD
-    %% Consumers
-    subgraph Consumers [Kênh Tiêu Thụ - Consumers]
-        direction LR
-        App[Mobile App và Web]
-        Internal[Hệ thống nội bộ - Chạm vay, HPO]
-    end
-
-    %% API Gateway
-    Gateway{{API Gateway / Load Balancer - Nginx / Spring Cloud}}
+flowchart LR
+    %% MÔ PHỎNG NETFLIX HIGH-LEVEL ARCHITECTURE
     
-    Consumers ==>|REST API| Gateway
+    classDef default fill:#ffffff,stroke:#333,stroke-width:1px;
+    classDef filter fill:#ffebee,stroke:#e53935,stroke-width:2px,color:#b71c1c;
+    classDef gateway fill:#e3f2fd,stroke:#1e88e5,stroke-width:2px,color:#0d47a1;
+    classDef service fill:#f3e5f5,stroke:#8e24aa,stroke-width:2px,color:#4a148c;
+    classDef db fill:#e8f5e9,stroke:#43a047,stroke-width:2px,color:#1b5e20;
+    classDef queue fill:#eeeeee,stroke:#9e9e9e,stroke-width:2px;
 
-    %% Core Engine (Spring Boot)
-    subgraph CLE [Credit Limit Engine - Java Spring Boot Microservices]
-        direction TB
-        CalcEngine[Limit Calculation Engine - Spring Boot]
-        FormMgr[Formula Management - Spring Boot]
-        DataWorker[Data Ingestion Workers - Spring Boot]
-        BatchJob[EOD và Sync Jobs - Spring Batch]
-        
-        CalcEngine -.- FormMgr -.- DataWorker -.- BatchJob
-    end
+    %% 1. CLIENTS
+    App["📱 Mobile và Web"]:::default
+    Int["🏢 Chạm Vay và HPO"]:::default
 
-    Gateway ==>|Tra cứu Hạn mức| CalcEngine
-    
-    %% Storage & Infrastructure
-    subgraph Storage [Lớp Dữ liệu và Lưu trữ - Data Layer]
-        direction LR
-        Redis[(Cache Layer - Redis)]
-        Oracle[(Core Database - Oracle DB)]
-        Kafka{{Message Broker - Apache Kafka}}
-    end
+    %% 2. LOAD BALANCER & GATEWAY
+    ELB(("⚖️ Nginx ELB")):::gateway
+    Netty(("🌐 Spring Cloud Gateway")):::gateway
 
-    %% Connections inside CLE
-    CalcEngine ==>|Đọc/Ghi tốc độ cao| Redis
-    CalcEngine -->|Truy vấn tham số| Oracle
-    FormMgr -->|CRUD Công thức| Oracle
-    
-    DataWorker <-->|Consume Events| Kafka
-    DataWorker -->|Upsert Parameters| Oracle
-    
-    BatchJob -->|Xử lý đồng loạt| Oracle
+    %% 3. FILTERS (ZUUL equivalents)
+    Inbound["📥 Inbound Filter - Auth và Rate Limit"]:::filter
+    Endpoint["⚙️ Endpoint Filter - Routing"]:::filter
+    Outbound["📤 Outbound Filter - Response"]:::filter
 
-    %% Data Sources
-    subgraph Sources [Hệ thống Nguồn - Data Sources]
-        direction LR
-        CoreDB[(Hệ thống Core - Indus)]
-        CIC[Dữ liệu CIC]
-        Others[Hệ thống khác - CUN, COL]
-    end
+    %% 4. MICROSERVICES
+    Hystrix(("🛡️ Circuit Breaker - Resilience4j")):::service
+    Calc["🧮 Limit Calculation Microservice"]:::service
+    Form["📋 Formula Mgr Microservice"]:::service
 
-    %% Data Ingestion paths
-    CoreDB ==>|CDC bằng Oracle GoldenGate| Kafka
-    CIC -->|Files / API| BatchJob
-    Others -->|Real-time API| DataWorker
-    
-    %% Users
-    Risk((Khối Risk)) ==>|Quản trị Công thức| FormMgr
-    
-    %% Styling to look premium for C-Level
-    style Consumers fill:#f0f8ff,stroke:#005c99,stroke-width:2px
-    style CLE fill:#e6f7ff,stroke:#00a3cc,stroke-width:3px,stroke-dasharray: 5 5
-    style Storage fill:#fff0f5,stroke:#cc0066,stroke-width:2px
-    style Sources fill:#fdf5e6,stroke:#cc7a00,stroke-width:2px
-    style Gateway fill:#e6ffe6,stroke:#009933,stroke-width:2px
-    style Redis fill:#ffcccc,stroke:#e60000,stroke-width:2px
-    style Oracle fill:#ffe6cc,stroke:#ff8000,stroke-width:2px
-    style Kafka fill:#e6e6fa,stroke:#6600cc,stroke-width:2px
-    style CalcEngine fill:#ffffff,stroke:#0066cc,stroke-width:2px
-    style FormMgr fill:#ffffff,stroke:#0066cc,stroke-width:2px
-    style DataWorker fill:#ffffff,stroke:#0066cc,stroke-width:2px
-    style BatchJob fill:#ffffff,stroke:#0066cc,stroke-width:2px
-    style Risk fill:#ffe6e6,stroke:#cc0000,stroke-width:2px
+    %% 5. STORAGE & CACHE
+    Redis[("⚡ Redis Cache")]:::db
+    Oracle[("💽 Oracle DB Parameters")]:::db
+
+    %% 6. PIPELINE (Bottom)
+    Core[("🏦 Indus Core")]:::db
+    OGG(("🔁 Oracle GoldenGate")):::filter
+    Kafka(("📨 Apache Kafka")):::queue
+    Worker["👷 Data Ingestion Async Workers"]:::service
+    Batch["⏳ Spring Batch Mass Processor"]:::service
+    CIC["📊 CIC Data"]:::default
+
+    %% --- RELATIONSHIPS ---
+
+    %% Client requests
+    App -.-> ELB
+    Int -.-> ELB
+    ELB -.->|REQUEST| Netty
+
+    %% Gateway to Filters
+    Netty -.-> Inbound
+    Inbound -.-> Endpoint
+    Endpoint -.-> Hystrix
+
+    %% Circuit Breaker to Services
+    Hystrix -.-> Calc
+    Hystrix -.-> Form
+
+    %% Response path
+    Calc -.-> Outbound
+    Form -.-> Outbound
+    Outbound -.-> Netty
+    Netty -.->|RESPONSE| ELB
+
+    %% Service to Storage
+    Calc -.->|High-speed Lookup| Redis
+    Calc -.->|Fallback Read| Oracle
+    Form -.->|CRUD| Oracle
+
+    %% Data Pipeline
+    Core -.->|CDC Stream| OGG
+    OGG -.->|Publish| Kafka
+    Kafka -.->|Consume| Worker
+    Worker -.->|Upsert| Oracle
+
+    %% Batch Pipeline
+    CIC -.->|EOD Sync| Batch
+    Batch -.->|Bulk Update| Oracle
 ```
 
 ---
