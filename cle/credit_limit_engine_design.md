@@ -404,15 +404,15 @@ Sơ đồ dưới đây tóm tắt lại toàn bộ luồng luân chuyển dữ 
 ```mermaid
 flowchart TD
     %% Nguồn Dữ Liệu
-    Core[(Hệ thống Nguồn<br/>Indus, Core, CIC)]
+    Core[("Hệ thống Nguồn<br/>Indus, Core, CIC")]
     
     %% Pre Go-Live
     subgraph PreGoLive [Giai đoạn Trước Go-Live: Khởi tạo Dữ liệu (Initial Load)]
         direction TB
-        Snapshot[Tạo Snapshot dữ liệu tại T0<br/>10 Triệu Khách hàng]
-        Spark[Hệ thống Xử lý Phân tán<br/>Parallel Batch / Spark]
-        Compute[Tính toán đồng thời<br/>39 Tham số liên đới]
-        Bulk[Thực thi Bulk Insert<br/>vào Database]
+        Snapshot["Tạo Snapshot dữ liệu tại T0<br/>10 Triệu Khách hàng"]
+        Spark["Hệ thống Xử lý Phân tán<br/>Parallel Batch / Spark"]
+        Compute["Tính toán đồng thời<br/>39 Tham số liên đới"]
+        Bulk["Thực thi Bulk Insert<br/>vào Database"]
         
         Snapshot --> Spark --> Compute --> Bulk
     end
@@ -420,10 +420,10 @@ flowchart TD
     %% Cutover & Post Go-Live
     subgraph PostGoLive [Giai đoạn Cutover & Sau Go-Live: Đồng bộ Delta & Real-time]
         direction TB
-        CDC[Bật CDC bắt thay đổi<br/>từ thời điểm T0]
-        Kafka[Message Queue<br/>lưu trữ thông điệp Delta]
-        CatchUp[Consume Delta để bắt kịp<br/>trạng thái thời gian thực]
-        RealTime[Xử lý Real-time & Cập nhật liên đới<br/>cho các giao dịch mới phát sinh]
+        CDC["Bật CDC bắt thay đổi<br/>từ thời điểm T0"]
+        Kafka["Message Queue<br/>lưu trữ thông điệp Delta"]
+        CatchUp["Consume Delta để bắt kịp<br/>trạng thái thời gian thực"]
+        RealTime["Xử lý Real-time & Cập nhật liên đới<br/>cho các giao dịch mới phát sinh"]
         
         CDC --> Kafka --> CatchUp
         CatchUp --> RealTime
@@ -435,9 +435,9 @@ flowchart TD
     Core -->|Export Snapshot| Snapshot
     Core -->|Stream Thay đổi| CDC
     
-    Bulk ===>|Load toàn bộ (Massive Write)| ParamDB
+    Bulk ==>|Load toàn bộ (Massive Write)| ParamDB
     CatchUp -.->|Cập nhật dữ liệu trễ| ParamDB
-    RealTime ===>|Cập nhật liên tục (BAU)| ParamDB
+    RealTime ==>|Cập nhật liên tục (BAU)| ParamDB
     
     %% Styles
     style PreGoLive fill:#f9f2ec,stroke:#d98cb3,stroke-width:2px,stroke-dasharray: 5 5
