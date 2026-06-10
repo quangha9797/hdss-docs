@@ -407,7 +407,7 @@ flowchart TD
     Core[("Hệ thống Nguồn<br/>Indus, Core, CIC")]
     
     %% Pre Go-Live
-    subgraph PreGoLive [Giai đoạn Trước Go-Live: Khởi tạo Dữ liệu (Initial Load)]
+    subgraph PreGoLive [Giai đoạn Trước Go-Live - Khởi tạo Dữ liệu]
         direction TB
         Snapshot["Tạo Snapshot dữ liệu tại T0<br/>10 Triệu Khách hàng"]
         Spark["Hệ thống Xử lý Phân tán<br/>Parallel Batch / Spark"]
@@ -418,7 +418,7 @@ flowchart TD
     end
     
     %% Cutover & Post Go-Live
-    subgraph PostGoLive [Giai đoạn Cutover & Sau Go-Live: Đồng bộ Delta & Real-time]
+    subgraph PostGoLive [Giai đoạn Sau Go-Live - Đồng bộ Delta và Real-time]
         direction TB
         CDC["Bật CDC bắt thay đổi<br/>từ thời điểm T0"]
         Kafka["Message Queue<br/>lưu trữ thông điệp Delta"]
