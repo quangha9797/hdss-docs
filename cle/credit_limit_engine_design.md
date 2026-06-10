@@ -435,9 +435,9 @@ flowchart TD
     Core -->|Export Snapshot| Snapshot
     Core -->|Stream Thay đổi| CDC
     
-    Bulk ==>|Load toàn bộ (Massive Write)| ParamDB
+    Bulk -->|Load toàn bộ Massive Write| ParamDB
     CatchUp -.->|Cập nhật dữ liệu trễ| ParamDB
-    RealTime ==>|Cập nhật liên tục (BAU)| ParamDB
+    RealTime -->|Cập nhật liên tục BAU| ParamDB
     
     %% Styles
     style PreGoLive fill:#f9f2ec,stroke:#d98cb3,stroke-width:2px,stroke-dasharray: 5 5
