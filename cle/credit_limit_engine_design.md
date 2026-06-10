@@ -60,29 +60,91 @@ flowchart TD
 
 ---
 
-## 2. Biểu đồ kiến trúc tổng quát (High-Level Architecture)
-Biểu đồ này mô tả cách hệ thống CLE tương tác với các hệ thống bên ngoài (khu vực Data Sources) và các bên tiêu thụ (Consumers).
+## 2. Kiến trúc Hệ thống Công nghệ Tổng thể (Technology Architecture)
+Biểu đồ này mô tả hệ thống CLE dưới góc độ công nghệ (Tech Stack), thể hiện rõ các ngôn ngữ, framework, database và message broker được sử dụng để đáp ứng bài toán lưu lượng cực lớn. Sơ đồ này đặc biệt phù hợp để trình bày năng lực kỹ thuật với các cấp quản lý (C-level).
+
+Tóm tắt công nghệ nền tảng:
+- **Microservices Framework:** Java / Spring Boot.
+- **Database:** Oracle Database (Parameter & Formula DB) và Redis (In-memory Cache).
+- **Event Streaming & CDC:** Apache Kafka và Oracle GoldenGate.
+- **Batch Processing:** Spring Batch.
+- **Hạ tầng (Infrastructure):** Triển khai On-Premise trên VM / Docker Swarm nội bộ.
 
 ```mermaid
-flowchart LR
-    subgraph Consumers[Kênh Nội Bộ & Khách hàng]
-        C[Chạm vay, HPO Web/App, Web Tra cứu]
+flowchart TD
+    %% Consumers
+    subgraph Consumers [Kênh Tiêu Thụ (Consumers)]
+        direction LR
+        App["Mobile App / Web"]
+        Internal["Hệ thống nội bộ<br/>Chạm vay, HPO"]
     end
 
-    subgraph CLE[Credit Limit Engine]
-        Engine((Hệ thống Tính Toán Hạn Mức))
-    end
-
-    subgraph DataSources[Các Hệ Thống Nguồn]
-        S[Core Banking, Collection, Underwriting, Document, CIC]
-    end
-
-    C -->|Yêu cầu hạn mức - Input CCCD| Engine
-    Engine -->|Trả về hạn mức dùng được| C
+    %% API Gateway
+    Gateway{{"<b>API Gateway / Load Balancer</b><br/>(Nginx / Spring Cloud Gateway)"}}
     
-    KhoiRisk[Khối Risk] -->|Cấu hình công thức & biến số| Engine
+    Consumers ==>|REST API / JSON| Gateway
+
+    %% Core Engine (Spring Boot)
+    subgraph CLE [Credit Limit Engine - Microservices (Java / Spring Boot)]
+        direction TB
+        CalcEngine["<b>Limit Calculation Engine</b><br/>(Spring Boot)"]
+        FormMgr["<b>Formula Management & Simulator</b><br/>(Spring Boot)"]
+        DataWorker["<b>Data Ingestion Workers</b><br/>(Spring Boot)"]
+        BatchJob["<b>EOD & Sync Jobs</b><br/>(Spring Batch)"]
+        
+        CalcEngine -.- FormMgr -.- DataWorker -.- BatchJob
+    end
+
+    Gateway ==>|Tra cứu Hạn mức| CalcEngine
     
-    S -->|Đẩy dữ liệu qua CDC, API, EOD, Batch| Engine
+    %% Storage & Infrastructure
+    subgraph Storage [Lớp Dữ liệu & Lưu trữ (Data Layer)]
+        direction LR
+        Redis[("<b>Cache Layer</b><br/>(Redis)")]
+        Oracle[("<b>Core Database</b><br/>(Oracle Database)")]
+        Kafka{{"<b>Message Broker</b><br/>(Apache Kafka)"}}
+    end
+
+    %% Connections inside CLE
+    CalcEngine ==>|Đọc/Ghi tốc độ cao| Redis
+    CalcEngine -->|Truy vấn tham số| Oracle
+    FormMgr -->|CRUD Công thức| Oracle
+    
+    DataWorker <-->|Consume Events| Kafka
+    DataWorker -->|Upsert Parameters| Oracle
+    
+    BatchJob -->|Xử lý đồng loạt| Oracle
+
+    %% Data Sources
+    subgraph Sources [Hệ thống Nguồn (Data Sources)]
+        direction LR
+        CoreDB[("Hệ thống Core<br/>(Indus)") ]
+        CIC["Dữ liệu CIC"]
+        Others["Hệ thống khác<br/>(CUN, COL)"]
+    end
+
+    %% Data Ingestion paths
+    CoreDB ==>|Change Data Capture<br/><b>(Oracle GoldenGate)</b>| Kafka
+    CIC -->|Files / API| BatchJob
+    Others -->|Real-time API| DataWorker
+    
+    %% Users
+    Risk(("Khối Risk")) ==>|Quản trị Công thức| FormMgr
+    
+    %% Styling to look premium for C-Level
+    style Consumers fill:#f0f8ff,stroke:#005c99,stroke-width:2px
+    style CLE fill:#e6f7ff,stroke:#00a3cc,stroke-width:3px,stroke-dasharray: 5 5
+    style Storage fill:#fff0f5,stroke:#cc0066,stroke-width:2px
+    style Sources fill:#fdf5e6,stroke:#cc7a00,stroke-width:2px
+    style Gateway fill:#e6ffe6,stroke:#009933,stroke-width:2px
+    style Redis fill:#ffcccc,stroke:#e60000,stroke-width:2px
+    style Oracle fill:#ffe6cc,stroke:#ff8000,stroke-width:2px
+    style Kafka fill:#e6e6fa,stroke:#6600cc,stroke-width:2px
+    style CalcEngine fill:#ffffff,stroke:#0066cc,stroke-width:2px
+    style FormMgr fill:#ffffff,stroke:#0066cc,stroke-width:2px
+    style DataWorker fill:#ffffff,stroke:#0066cc,stroke-width:2px
+    style BatchJob fill:#ffffff,stroke:#0066cc,stroke-width:2px
+    style Risk fill:#ffe6e6,stroke:#cc0000,stroke-width:2px
 ```
 
 ---
