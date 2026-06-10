@@ -363,3 +363,84 @@ flowchart TD
     style DB fill:#e6ffe6,stroke:#00cc00,stroke-width:2px
     style Impact fill:#fdfdfd,stroke:#999,stroke-width:2px,stroke-dasharray: 5 5
 ```
+
+---
+
+## 7. Chiến lược Xử lý & Tổng hợp Dữ liệu: Trước và Sau Go-Live (Data Migration Strategy)
+
+Với khối lượng dữ liệu khổng lồ (ước tính **10 triệu khách hàng**, mỗi khách hàng cần tổng hợp và tính toán chéo **39 tham số/biến số**), bài toán đặt ra không chỉ ở mặt lưu trữ mà còn ở năng lực tính toán (Compute) và đồng bộ trơn tru.
+
+Dưới đây là thiết kế giải pháp và kế hoạch triển khai để xử lý lượng tham số khổng lồ này trước thời điểm Go-Live và cách duy trì tính toàn vẹn dữ liệu sau khi Go-Live.
+
+### 7.1. Đánh giá Hạ tầng & Năng lực Xử lý (Infrastructure Assessment)
+- **Tổng lượng Data Point:** `10.000.000 KH * 39 Biến số = 390.000.000 (390 triệu) Data Points`.
+- **Database Load:** Parameter DB cần khả năng ghi (Write) hàng loạt cực cao. Thiết kế nên ưu tiên sử dụng NoSQL (như MongoDB) dưới dạng Document-based hoặc RDBMS (như PostgreSQL) có Partitioning theo `customer_id`.
+- **Năng lực tính toán (Compute):** Không thể tính toán tuần tự trực tiếp trên Database. Hệ thống cần các cụm xử lý phân tán (Distributed Processing) như Apache Spark hoặc hệ thống Batch Worker chia nhỏ thành nhiều luồng (Multi-threading / Chunking).
+
+### 7.2. Giai đoạn 1: Khởi tạo Dữ liệu Trước Go-Live (Initial Data Load)
+Trước ngày Go-Live, hệ thống cần tính toán xong toàn bộ 39 tham số cho 10 triệu khách hàng tại một thời điểm `T0`.
+- **Phương pháp:** Snapshot & ETL Batch Processing.
+- **Quy trình thực thi:**
+  1. Trích xuất (Snapshot) toàn bộ dữ liệu thô từ các hệ thống nguồn (Indus, Core, CIC...) tại thời điểm `T0` đổ vào Data Lake hoặc Staging DB để không ảnh hưởng đến tải của hệ thống Production.
+  2. Hệ thống xử lý phân tán (Spark/Batch) sẽ chia tập khách hàng thành nhiều phần nhỏ (Ví dụ: mỗi Chunk 100.000 KH) và xử lý song song.
+  3. Tính toán toàn bộ 39 tham số theo cấu trúc liên đới.
+  4. **Bulk Insert / Upsert** 10 triệu bản ghi này vào **Parameter DB**.
+
+### 7.3. Giai đoạn 2: Bắt kịp Dữ liệu tại thời điểm Cắt lớp (Cutover - Delta Catchup)
+Quá trình chạy Batch Khởi tạo (Giai đoạn 1) có thể mất nhiều giờ hoặc vài ngày. Trong thời gian đó, dữ liệu trên Core tiếp tục sinh ra các giao dịch mới.
+- Bật luồng **CDC (Change Data Capture)** từ đúng thời điểm `T0` để hứng tất cả các sự kiện thay đổi lưu vào một Message Queue (VD: Kafka).
+- Sau khi quá trình Batch Load hoàn tất, Engine sẽ nhanh chóng tiêu thụ (Consume) toàn bộ thông điệp tồn đọng trong Queue này để tính toán và cập nhật phần dữ liệu sinh ra trong lúc chạy Batch (gọi là Delta).
+- Khi lượng thông điệp trong Queue trở về gần bằng 0, Parameter DB đã bắt kịp hoàn toàn với thời gian thực `T1` ➔ Sẵn sàng cho Go-Live.
+
+### 7.4. Giai đoạn 3: Vận hành Sau Go-Live (BAU - Business As Usual)
+Sau khi Go-Live thành công, hệ thống sẽ hoàn toàn hoạt động theo kiến trúc Event-Driven:
+- Hệ thống chỉ còn xử lý **Dữ liệu phát sinh mới (Delta)** thay vì quét lại toàn bộ.
+- Sự kiện thay đổi (Ví dụ: Giải ngân từ Indus) kích hoạt ngay luồng xử lý liên đới (Cascade Updates) cho một tệp khách hàng bị ảnh hưởng như đã mô tả ở Mục 6.3.
+- Các Job EOD định kỳ (Cuối ngày, Hàng tháng) tiếp tục nhiệm vụ cập nhật các biến số tĩnh hoặc cần tổng hợp cuối ngày (VD: Tính lãi phân bổ, lấy Nhóm nợ R18 CIC).
+
+### 7.5. Biểu đồ Chiến lược Tổng hợp Dữ liệu
+Sơ đồ dưới đây tóm tắt lại toàn bộ luồng luân chuyển dữ liệu từ giai đoạn khởi tạo cho đến sau khi chính thức Go-Live.
+
+```mermaid
+flowchart TD
+    %% Nguồn Dữ Liệu
+    Core[(Hệ thống Nguồn<br/>Indus, Core, CIC)]
+    
+    %% Pre Go-Live
+    subgraph PreGoLive [Giai đoạn Trước Go-Live: Khởi tạo Dữ liệu (Initial Load)]
+        direction TB
+        Snapshot[Tạo Snapshot dữ liệu tại T0<br/>10 Triệu Khách hàng]
+        Spark[Hệ thống Xử lý Phân tán<br/>Parallel Batch / Spark]
+        Compute[Tính toán đồng thời<br/>39 Tham số liên đới]
+        Bulk[Thực thi Bulk Insert<br/>vào Database]
+        
+        Snapshot --> Spark --> Compute --> Bulk
+    end
+    
+    %% Cutover & Post Go-Live
+    subgraph PostGoLive [Giai đoạn Cutover & Sau Go-Live: Đồng bộ Delta & Real-time]
+        direction TB
+        CDC[Bật CDC bắt thay đổi<br/>từ thời điểm T0]
+        Kafka[Message Queue<br/>lưu trữ thông điệp Delta]
+        CatchUp[Consume Delta để bắt kịp<br/>trạng thái thời gian thực]
+        RealTime[Xử lý Real-time & Cập nhật liên đới<br/>cho các giao dịch mới phát sinh]
+        
+        CDC --> Kafka --> CatchUp
+        CatchUp --> RealTime
+    end
+    
+    %% Target DB
+    ParamDB[("<b>Parameter DB</b><br/>(Sẵn sàng 10M Record x 39 Fields)")]
+    
+    Core -->|Export Snapshot| Snapshot
+    Core -->|Stream Thay đổi| CDC
+    
+    Bulk ===>|Load toàn bộ (Massive Write)| ParamDB
+    CatchUp -.->|Cập nhật dữ liệu trễ| ParamDB
+    RealTime ===>|Cập nhật liên tục (BAU)| ParamDB
+    
+    %% Styles
+    style PreGoLive fill:#f9f2ec,stroke:#d98cb3,stroke-width:2px,stroke-dasharray: 5 5
+    style PostGoLive fill:#e6f7ff,stroke:#66b3ff,stroke-width:2px,stroke-dasharray: 5 5
+    style ParamDB fill:#e6ffe6,stroke:#00cc00,stroke-width:3px
+```
