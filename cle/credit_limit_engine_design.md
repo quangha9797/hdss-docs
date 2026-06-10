@@ -308,3 +308,58 @@ sequenceDiagram
     Ops->>DB: [API Tức thời] NV Thu hồi nợ / Thẩm định ghi nhận đánh giá xấu
     Ops->>DB: [Job Định kỳ] Hàng tháng nhận biến động Nhóm nợ R18 từ CIC
 ```
+
+### 6.3. Biểu đồ Phức hợp xử lý Dữ liệu liên đới (Data Interdependency & Cascade Updates)
+
+Trong "Phân hệ tổng hợp dữ liệu", quá trình xử lý không chỉ đơn thuần là cập nhật 1-1 mà mang **tính chất liên đới phức tạp**. Khi một sự kiện xảy ra (ví dụ từ hệ thống Indus), engine sẽ phải tính toán và cập nhật hàng loạt các biến số khác ngay lập tức hoặc sau khi chạy EOD. 
+
+Ví dụ dưới đây mô tả tác động liên đới của sự kiện: **Hợp đồng CL0xxxxx01 (Vay tiền mặt), số tiền 50 triệu được chuyển trạng thái "Giải ngân"**.
+
+```mermaid
+flowchart TD
+    %% Nguồn sự kiện
+    subgraph EventSource [Core System - Indus]
+        Trigger(("<b>Sự kiện Giải ngân</b><br/>Hợp đồng: CL0xxxxx01<br/>Sản phẩm: Tiền mặt (CL)<br/>Số tiền: 50.000.000 VNĐ"))
+    end
+
+    %% Engine xử lý
+    subgraph DataIngestion [Phân hệ Tổng hợp Dữ liệu]
+        Worker{"<b>Data Processing Engine</b><br/>(Xử lý tức thời & Tổng hợp EOD)"}
+    end
+
+    %% Tác động liên đới
+    subgraph Impact [Các biến số / tham số bị ảnh hưởng liên đới]
+        direction TB
+        P1["<b>number_of_loans</b><br/>Tăng +1 (Cộng dồn số lượng khoản vay)"]
+        P2["<b>max_fa</b><br/>Tính lại mức FA cao nhất của tất cả loan"]
+        P3["<b>number_of_cash_loans</b><br/>Tăng +1 (Số lượng vay tiền mặt đã giải ngân)"]
+        P4["<b>total_outstanding_debt</b><br/>Cộng thêm 50tr vào tổng dư nợ hiện tại"]
+        P5["<b>number_of_living_loans</b><br/>Tăng +1 (Số lượng khoản vay còn dư nợ)"]
+        P6["<b>last_payment_date_loan</b><br/>Cập nhật ngày thanh toán gần nhất (tính cho tất cả khoản vay)"]
+    end
+
+    %% Kết nối
+    Trigger ===>|Thông điệp Event / EOD| Worker
+    
+    Worker --->|Cập nhật liên đới| P1
+    Worker --->|Cập nhật liên đới| P2
+    Worker --->|Cập nhật liên đới| P3
+    Worker --->|Cập nhật liên đới| P4
+    Worker --->|Cập nhật liên đới| P5
+    Worker --->|Cập nhật liên đới| P6
+
+    %% Database
+    DB[("<b>Parameter DB</b><br/>(Dữ liệu sẵn sàng để tính Hạn mức)")]
+    P1 -.-> DB
+    P2 -.-> DB
+    P3 -.-> DB
+    P4 -.-> DB
+    P5 -.-> DB
+    P6 -.-> DB
+
+    %% Styling
+    style Trigger fill:#ffe6e6,stroke:#ff3333,stroke-width:2px
+    style Worker fill:#e6f3ff,stroke:#0066cc,stroke-width:2px
+    style DB fill:#e6ffe6,stroke:#00cc00,stroke-width:2px
+    style Impact fill:#fdfdfd,stroke:#999,stroke-width:2px,stroke-dasharray: 5 5
+```
