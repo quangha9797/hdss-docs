@@ -75,22 +75,22 @@ flowchart TD
     %% Consumers
     subgraph Consumers [Kênh Tiêu Thụ - Consumers]
         direction LR
-        App["Mobile App / Web"]
-        Internal["Hệ thống nội bộ<br/>Chạm vay, HPO"]
+        App[Mobile App và Web]
+        Internal[Hệ thống nội bộ - Chạm vay, HPO]
     end
 
     %% API Gateway
-    Gateway{{"<b>API Gateway / Load Balancer</b><br/>(Nginx / Spring Cloud Gateway)"}}
+    Gateway{{API Gateway / Load Balancer - Nginx / Spring Cloud}}
     
-    Consumers ==>|REST API / JSON| Gateway
+    Consumers ==>|REST API| Gateway
 
     %% Core Engine (Spring Boot)
-    subgraph CLE [Credit Limit Engine - Microservices - Java Spring Boot]
+    subgraph CLE [Credit Limit Engine - Java Spring Boot Microservices]
         direction TB
-        CalcEngine["<b>Limit Calculation Engine</b><br/>(Spring Boot)"]
-        FormMgr["<b>Formula Management & Simulator</b><br/>(Spring Boot)"]
-        DataWorker["<b>Data Ingestion Workers</b><br/>(Spring Boot)"]
-        BatchJob["<b>EOD & Sync Jobs</b><br/>(Spring Batch)"]
+        CalcEngine[Limit Calculation Engine - Spring Boot]
+        FormMgr[Formula Management - Spring Boot]
+        DataWorker[Data Ingestion Workers - Spring Boot]
+        BatchJob[EOD và Sync Jobs - Spring Batch]
         
         CalcEngine -.- FormMgr -.- DataWorker -.- BatchJob
     end
@@ -100,9 +100,9 @@ flowchart TD
     %% Storage & Infrastructure
     subgraph Storage [Lớp Dữ liệu và Lưu trữ - Data Layer]
         direction LR
-        Redis[("<b>Cache Layer</b><br/>(Redis)")]
-        Oracle[("<b>Core Database</b><br/>(Oracle Database)")]
-        Kafka{{"<b>Message Broker</b><br/>(Apache Kafka)"}}
+        Redis[(Cache Layer - Redis)]
+        Oracle[(Core Database - Oracle DB)]
+        Kafka{{Message Broker - Apache Kafka}}
     end
 
     %% Connections inside CLE
@@ -118,18 +118,18 @@ flowchart TD
     %% Data Sources
     subgraph Sources [Hệ thống Nguồn - Data Sources]
         direction LR
-        CoreDB[("Hệ thống Core<br/>(Indus)") ]
-        CIC["Dữ liệu CIC"]
-        Others["Hệ thống khác<br/>(CUN, COL)"]
+        CoreDB[(Hệ thống Core - Indus)]
+        CIC[Dữ liệu CIC]
+        Others[Hệ thống khác - CUN, COL]
     end
 
     %% Data Ingestion paths
-    CoreDB ==>|Change Data Capture<br/><b>(Oracle GoldenGate)</b>| Kafka
+    CoreDB ==>|CDC bằng Oracle GoldenGate| Kafka
     CIC -->|Files / API| BatchJob
     Others -->|Real-time API| DataWorker
     
     %% Users
-    Risk(("Khối Risk")) ==>|Quản trị Công thức| FormMgr
+    Risk((Khối Risk)) ==>|Quản trị Công thức| FormMgr
     
     %% Styling to look premium for C-Level
     style Consumers fill:#f0f8ff,stroke:#005c99,stroke-width:2px
