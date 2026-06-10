@@ -73,7 +73,7 @@ Tóm tắt công nghệ nền tảng:
 ```mermaid
 flowchart TD
     %% Consumers
-    subgraph Consumers [Kênh Tiêu Thụ (Consumers)]
+    subgraph Consumers [Kênh Tiêu Thụ - Consumers]
         direction LR
         App["Mobile App / Web"]
         Internal["Hệ thống nội bộ<br/>Chạm vay, HPO"]
@@ -85,7 +85,7 @@ flowchart TD
     Consumers ==>|REST API / JSON| Gateway
 
     %% Core Engine (Spring Boot)
-    subgraph CLE [Credit Limit Engine - Microservices (Java / Spring Boot)]
+    subgraph CLE [Credit Limit Engine - Microservices - Java Spring Boot]
         direction TB
         CalcEngine["<b>Limit Calculation Engine</b><br/>(Spring Boot)"]
         FormMgr["<b>Formula Management & Simulator</b><br/>(Spring Boot)"]
@@ -98,7 +98,7 @@ flowchart TD
     Gateway ==>|Tra cứu Hạn mức| CalcEngine
     
     %% Storage & Infrastructure
-    subgraph Storage [Lớp Dữ liệu & Lưu trữ (Data Layer)]
+    subgraph Storage [Lớp Dữ liệu và Lưu trữ - Data Layer]
         direction LR
         Redis[("<b>Cache Layer</b><br/>(Redis)")]
         Oracle[("<b>Core Database</b><br/>(Oracle Database)")]
@@ -116,7 +116,7 @@ flowchart TD
     BatchJob -->|Xử lý đồng loạt| Oracle
 
     %% Data Sources
-    subgraph Sources [Hệ thống Nguồn (Data Sources)]
+    subgraph Sources [Hệ thống Nguồn - Data Sources]
         direction LR
         CoreDB[("Hệ thống Core<br/>(Indus)") ]
         CIC["Dữ liệu CIC"]
