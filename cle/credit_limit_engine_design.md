@@ -508,3 +508,49 @@ flowchart TD
     style PostGoLive fill:#e6f7ff,stroke:#66b3ff,stroke-width:2px,stroke-dasharray: 5 5
     style ParamDB fill:#e6ffe6,stroke:#00cc00,stroke-width:3px
 ```
+
+---
+
+## 8. Chi tiết Công nghệ cho các Dịch vụ và Tích hợp hệ thống (System Integration & Tech Stack)
+
+Dựa trên kiến trúc tổng thể, hệ thống bao gồm các dịch vụ cốt lõi sau đây và sử dụng thông điệp sự kiện (Kafka) để giao tiếp, đồng bộ dữ liệu.
+
+### 8.1. Chi tiết công nghệ các Dịch vụ (Microservices Tech Stack)
+
+*   **API Gateway / Query Service:**
+    *   **Công nghệ:** Spring Cloud Gateway, Nginx.
+    *   **Vai trò:** Xử lý điều hướng (routing), Authentication, Rate Limiting để chống quá tải (DDoS) và phân quyền truy cập từ các kênh HPO, Chạm vay, hoặc hệ thống nội bộ.
+*   **Limit Calculation Engine (Core API):**
+    *   **Công nghệ:** Java / Spring Boot. 
+    *   **Vai trò:** Tối ưu hoá luồng xử lý đồng thời (Concurrency) để đạt hiệu năng tra cứu hạn mức mili-giây. Dịch vụ này kết nối trực tiếp đến Redis để lấy hạn mức đã được tính toán tạm thời (Cache), hoặc lấy tham số từ Parameter DB và áp dụng công thức để tính Real-time.
+*   **Formula Management Service & Simulator:**
+    *   **Công nghệ:** Java / Spring Boot kết hợp giao diện Frontend (ReactJS / VueJS).
+    *   **Vai trò:** Cung cấp giao diện quản trị cho khối Risk thiết lập và thử nghiệm các công thức tính toán hạn mức, cấu hình điểm (Scoring) một cách linh hoạt (Low-code/No-code).
+*   **Data Ingestion Workers / Job Scheduler:**
+    *   **Công nghệ:** Java / Spring Boot, Apache Kafka Listener, Debezium (CDC), Spring Batch.
+    *   **Vai trò:** Lắng nghe liên tục các thay đổi dữ liệu từ hệ thống nguồn (Core Indus, LOS) thông qua Kafka để cập nhật/upsert tham số vào Parameter DB. Spring Batch được dùng để lập lịch chạy EOD, quét và tính toán dữ liệu phức tạp vào cuối ngày.
+*   **Cơ sở dữ liệu (Databases & Cache):**
+    *   **Parameter DB / Formula DB:** Sử dụng RDBMS (như Oracle/PostgreSQL) hoặc NoSQL Document-based (như MongoDB) để đáp ứng khả năng Ghi/Đọc cường độ cao. Áp dụng cơ chế Partitioning theo `customer_id`.
+    *   **Cache:** Redis (In-memory) giúp truy xuất thông tin hạn mức siêu tốc độ.
+
+### 8.2. Danh sách các Topic Kafka (Message Broker Integration)
+
+Giao tiếp giữa CLE và các hệ thống nội bộ/bên ngoài chủ yếu qua kiến trúc Hướng sự kiện (Event-Driven) thông qua Apache Kafka. Dưới đây là danh sách chi tiết các Topic, Event và luồng Producer - Consumer được thiết kế:
+
+| STT | Topic | Event | Producer | Consumer |
+| :--- | :--- | :--- | :--- | :--- |
+| 1 | **customer-events** | `CUSTOMER_CREATED`<br/>`CUSTOMER_UPDATED`<br/>`CUSTOMER_PHONE_UPDATED`<br/>`CUSTOMER_CCCD_UPDATED` | HPO, Chạm Vay | Feature Store |
+| 2 | **ekyc-events** | `EKYC_COMPLETED`<br/>`EKYC_FAILED`<br/>`NFC_COMPLETED` | HPO, Chạm Vay | Feature Store<br/>CLE |
+| 3 | **Other_info-events** | `INCOME_DECLARED`<br/>`EDU_DECLARED`<br/>`PROFESSION_DECLARE`<br/>`AGE_DECLARE`<br/>`GENDER_DECLARE` | HPO, Chạm Vay | Feature Store<br/>Score Engine |
+| 4 | **document-events** | `DOCUMENT_UPLOADED`<br/>`DOCUMENT_VERIFIED` (*)<br/>`DOCUMENT_REJECTED` (*) | HPO, Chạm Vay | Document Engine<br/>CLE |
+| 5.1 | **loan-events** | `APPLICATION_CREATED`<br/>`APPLICATION_SUBMITTED`<br/>`LOAN_APPROVED`<br/>`LOAN_REJECTED`<br/>`CONTRACT_SIGNED`<br/>`DISBURSED`<br/>`LOAN_CLOSED` | Indus | Feature Store<br/>CLE |
+| 5.2 | **card-events** | `CARD_ISSUED` (**)<br/>`CARD_LIMIT_CHANGED`<br/>`CARD_CLOSED` | Card Service | CLE |
+| 6 | **collection-events** | `NEGATIVE_REMARK_ADDED`<br/>`NEGATIVE_REMARK_REMOVED`<br/>`DPD_UPDATED` | Collection | Feature Store<br/>CLE |
+| 7 | **underwriting-events**| `REMARK_ADDED`<br/>`REMARK_REMOVED` | CU | Feature Store<br/>CLE |
+| 8 | **r18_event** | `CIC_R18_UPDATED` | RCR | Feature Store<br/>CLE |
+| 9 | **pcb_event** | `PCB_CARD_REJECT_NO`<br/>`PCB_CONTRACT`<br/>`PCB_CARD_CONTRACT` | RCR | Feature Store<br/>CLE |
+
+**Ghi chú:**
+*   *(*) Đối với `DOCUMENT_VERIFIED`, `DOCUMENT_REJECTED`: Trạng thái chứng từ từ CU (cần xác nhận lại xem bên CU có trạng thái này cho chứng từ hay không).*
+*   *(**) Đối với `CARD_ISSUED`: Tạm thời không quan tâm đến trạng thái kích hoạt.*
+*   *CLE chủ yếu đóng vai trò Consumer lắng nghe các sự kiện liên quan đến eKYC, chứng từ, khoản vay, thẻ, thu hồi nợ, thẩm định, CIC để cập nhật tự động các biến số/tham số vào Parameter DB một cách Tức thời (Near Real-time).*
