@@ -132,3 +132,64 @@ IF(SALARY < 5000000,
    * Bước 4 (FLOOR): Lấy `37001200 / 1000 = 37001.2`. `FLOOR(37001.2) = 37001`. Cuối cùng lấy `37001 * 1000 = 37001000`.
    * Bước 5 (IF ngoài cùng): Lương thỏa mãn `>= 5tr`, nên lấy kết quả từ nhánh True.
 3. **Kết quả trả về:** Hạn mức cuối cùng cấp cho khách hàng là **37.001.000đ**.
+
+---
+
+## 8. Phụ Lục: Cấu trúc Cây Cú pháp Trừu tượng (AST - Abstract Syntax Tree)
+Để giúp đội ngũ phát triển hình dung rõ cách Backend Engine (ví dụ `mathjs`) biên dịch chuỗi công thức nhận được từ Frontend, dưới đây là cấu trúc AST của biểu thức sau khi được parse:
+
+**Biểu thức đầu vào:**
+```text
+SALARY * 1.5 + 100
+```
+
+### 8.1. Sơ đồ cây logic
+```text
+            +  (OperatorNode: Phép cộng)
+           / \
+          /   \
+         *     100 (ConstantNode: Hằng số)
+        / \
+       /   \
+  SALARY    1.5 (ConstantNode: Hằng số)
+(SymbolNode: Biến)
+```
+
+### 8.2. Cấu trúc JSON AST thực tế của Engine (mathjs)
+Khi gọi `math.parse('SALARY * 1.5 + 100')`, đối tượng AST trả về có cấu trúc JSON như dưới đây. Backend sẽ duyệt qua cây này để map dữ liệu và tính toán:
+
+```json
+{
+  "type": "OperatorNode",
+  "op": "+",
+  "fn": "add",
+  "args": [
+    {
+      "type": "OperatorNode",
+      "op": "*",
+      "fn": "multiply",
+      "args": [
+        {
+          "type": "SymbolNode",
+          "name": "SALARY"
+        },
+        {
+          "type": "ConstantNode",
+          "value": 1.5
+        }
+      ],
+      "implicit": false
+    },
+    {
+      "type": "ConstantNode",
+      "value": 100
+    }
+  ]
+}
+```
+
+**Ý nghĩa các loại Nút chính trong AST:**
+* **`SymbolNode`**: Đại diện cho các biến số (`SALARY`, `AGE`...). Backend sẽ tìm trong Object context được gửi lên để thay thế giá trị thực tế vào nút này.
+* **`ConstantNode`**: Đại diện cho các hằng số cố định (`100`, `1.5`, `PI`, `E`...).
+* **`OperatorNode`**: Đại diện cho các toán tử số học/so sánh (`+`, `-`, `*`, `/`, `>`, `<`...).
+* **`FunctionNode`**: Đại diện cho các hàm nghiệp vụ (`IF`, `MIN`, `MAX`, `FLOOR`...). Nút này sẽ có thuộc tính `name` để gọi hàm logic tương ứng và mảng `args` chứa các tham số truyền vào hàm.
