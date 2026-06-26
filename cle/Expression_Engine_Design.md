@@ -393,3 +393,64 @@ Dưới đây là cấu trúc AST dạng JSON đầy đủ được biên dịch
   ]
 }
 ```
+
+---
+
+## 9. Giải pháp Lưu trữ và Tối ưu hóa AST (Performance & Storage Optimization)
+Như đã thấy ở Mục 8.3, cấu trúc JSON của AST sinh ra cực kỳ dài và cồng kềnh. Việc lưu trữ toàn bộ cục JSON khổng lồ này vào Database (như SQL / MongoDB) là **không cần thiết và gây lãng phí tài nguyên**.
+
+Giải pháp kiến trúc chuẩn (Best Practice) cho hệ thống Engine:
+
+### 9.1. Tầng Database (Lưu trữ vật lý)
+**CHỈ LƯU chuỗi công thức gốc (Raw Text).**
+* Trong Database, bạn chỉ cần 1 cột `formula_text` (kiểu `VARCHAR` hoặc `TEXT`).
+* Ví dụ chỉ lưu: `IF(SALARY < 5000000, 0, ...)`
+* **Ưu điểm:** Dung lượng vô cùng nhẹ, con người dễ đọc (Audit), và dễ dàng nạp ngược lại lên UI Monaco Editor để sửa.
+
+### 9.2. Tầng Backend Application (Runtime Caching)
+Bản chất cây AST chỉ phục vụ cho việc tính toán của CPU. Việc phân tích từ Text -> AST tốn CPU, nhưng chỉ cần làm 1 lần. Backend sẽ áp dụng cơ chế **In-Memory Caching (Lưu đệm trên RAM Server)**:
+
+1. **Khởi tạo lần đầu (Lần chạy đầu tiên):** Backend truy vấn chuỗi Text từ DB, dùng Engine gọi lệnh Compile (VD: `let compiled = math.parse(text).compile()`).
+2. **Lưu vào Caching:** Đưa đối tượng `compiled` này vào bộ nhớ RAM của Application (dùng Hash Map hoặc LRU Cache) với Key là `Formula_ID`.
+3. **Các lần tính toán sau (Cho hàng triệu KH):** Backend không cần Parse lại chuỗi và cũng không cần tải lại AST JSON. Nó chỉ việc lấy `compiled` từ RAM ra, nhồi dữ liệu (Context) vào và chạy lệnh `compiled.evaluate(context)`.
+
+**Mô hình luồng tối ưu:**
+```text
+[DB: Chỉ lưu Text] 
+   |
+   |-- (Lần tính đầu tiên) --> [Backend Parse & Compile] --> LƯU KẾT QUẢ VÀO [RAM Cache]
+   |
+   |-- (Lần tính thứ 2..N) --> Lấy trực tiếp từ [RAM Cache] --> [Evaluate] (Tính toán siêu tốc)
+```
+Với thiết kế này, bạn **không bao giờ phải lưu file JSON AST dài dòng** đi đâu cả, nó chỉ tồn tại tạm thời trong RAM của Backend để phục vụ tính toán, giúp hệ thống đạt hiệu năng tối đa với chi phí lưu trữ thấp nhất.
+
+### 9.3. Kiến trúc Đồng bộ Cache trong môi trường Phân tán (Webservice/Microservices)
+Khi hệ thống được thiết kế dưới dạng nhiều máy chủ chạy song song (Load Balancing / Pods trong Kubernetes), việc quản lý RAM Cache đặt ra hai vấn đề lớn:
+1. Không thể lưu Hàm (Compiled AST Function) vào Redis, vì Redis chỉ lưu chuỗi (JSON) hoặc Data thô, không lưu được các Function nằm trong Heap Memory của Application. Việc lưu chuỗi AST vào Redis và parse lại mỗi lần tính toán sẽ làm mất đi ý nghĩa của tốc độ.
+2. Nếu lưu ở RAM (Local Cache) của từng Server, khi công thức bị chỉnh sửa ở Server A, làm sao Server B biết để cập nhật?
+
+**Giải pháp Chuẩn (Enterprise Pattern): Local LRU Cache + Redis Pub/Sub Invalidation**
+Thay vì dùng Redis làm nơi chứa Data (Cache Storage), ta sẽ dùng Redis làm Kênh thông báo (Message Broker) để ra lệnh "xóa cache".
+
+* **Cấu trúc lưu trữ nội bộ:** Mỗi Server WebService sẽ tự cấp phát một bộ nhớ `LRU Cache` (VD: `lru-cache` của Node.js, `Caffeine` của Java, `MemoryCache` của .NET) giới hạn tối đa khoảng 5000-10000 công thức để tránh tràn RAM (OOM). Thuật toán LRU sẽ tự động xóa các công thức lâu không tính toán để nhường chỗ cho công thức mới.
+* **Luồng đồng bộ (Invalidation Workflow):**
+  1. Người dùng cập nhật công thức số `F_123`. Request đi vào **Server A**.
+  2. **Server A** lưu công thức dạng Text xuống Database. Đồng thời, Server A xóa công thức `F_123` khỏi RAM Cache của chính nó.
+  3. **Server A** bắn một thông báo (Publish) vào kênh `Redis Pub/Sub` với nội dung: `INVALIDATE_FORMULA: F_123`.
+  4. Các **Server B, C, D** đang lắng nghe (Subscribe) kênh Pub/Sub này. Ngay lập tức, chúng nhận được thông điệp và tiến hành xóa `F_123` khỏi bộ nhớ LRU Cache nội bộ của chúng.
+  5. Khi một khách hàng bất kỳ tiến hành tính toán liên quan đến `F_123` trúng vào Server C, do Cache nội bộ đã bị xóa, Server C sẽ bắt buộc truy vấn xuống Database lấy phiên bản mới nhất, Compile lại và lưu lại vào RAM của nó.
+
+**Sơ đồ Kiến trúc Đồng bộ:**
+```text
+           [User Update F_123]
+                   |
+             (Load Balancer)
+                   |
+             [Server Web A] ---> Cập nhật DB & Bắn lệnh "XÓA F_123" vào Redis Pub/Sub
+                   |                                       |
+                   |---------------------------------------|
+                                                           |
+ [Server Web B] (Nghe Redis Pub/Sub) <--- Xóa F_123 khỏi RAM Cache của B
+ [Server Web C] (Nghe Redis Pub/Sub) <--- Xóa F_123 khỏi RAM Cache của C
+```
+Cơ chế này đảm bảo tốc độ thực thi (Evaluation) nằm hoàn toàn trong RAM của từng Server với độ trễ gần như bằng 0, trong khi vẫn giải quyết triệt để bài toán đồng nhất dữ liệu (Data Consistency) trên toàn hệ thống phân tán.
