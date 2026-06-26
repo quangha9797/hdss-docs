@@ -193,3 +193,203 @@ Khi gọi `math.parse('SALARY * 1.5 + 100')`, đối tượng AST trả về có
 * **`ConstantNode`**: Đại diện cho các hằng số cố định (`100`, `1.5`, `PI`, `E`...).
 * **`OperatorNode`**: Đại diện cho các toán tử số học/so sánh (`+`, `-`, `*`, `/`, `>`, `<`...).
 * **`FunctionNode`**: Đại diện cho các hàm nghiệp vụ (`IF`, `MIN`, `MAX`, `FLOOR`...). Nút này sẽ có thuộc tính `name` để gọi hàm logic tương ứng và mảng `args` chứa các tham số truyền vào hàm.
+
+### 8.3. Cấu trúc AST đầy đủ của Công thức Tính Hạn mức Tín dụng (Phần 7)
+Dưới đây là cấu trúc AST dạng JSON đầy đủ được biên dịch từ công thức tính hạn mức phức tạp ở Mục 7. Đối tượng này là cấu trúc thực tế mà Backend nhận và phân tích để thực hiện tính toán:
+
+```json
+{
+  "mathjs": "FunctionNode",
+  "fn": {
+    "mathjs": "SymbolNode",
+    "name": "IF"
+  },
+  "args": [
+    {
+      "mathjs": "OperatorNode",
+      "op": "<",
+      "fn": "smaller",
+      "args": [
+        {
+          "mathjs": "SymbolNode",
+          "name": "SALARY"
+        },
+        {
+          "mathjs": "ConstantNode",
+          "value": 5000000
+        }
+      ],
+      "implicit": false,
+      "isPercentage": false
+    },
+    {
+      "mathjs": "ConstantNode",
+      "value": 0
+    },
+    {
+      "mathjs": "OperatorNode",
+      "op": "*",
+      "fn": "multiply",
+      "args": [
+        {
+          "mathjs": "FunctionNode",
+          "fn": {
+            "mathjs": "SymbolNode",
+            "name": "FLOOR"
+          },
+          "args": [
+            {
+              "mathjs": "OperatorNode",
+              "op": "/",
+              "fn": "divide",
+              "args": [
+                {
+                  "mathjs": "FunctionNode",
+                  "fn": {
+                    "mathjs": "SymbolNode",
+                    "name": "MIN"
+                  },
+                  "args": [
+                    {
+                      "mathjs": "FunctionNode",
+                      "fn": {
+                        "mathjs": "SymbolNode",
+                        "name": "MAX"
+                      },
+                      "args": [
+                        {
+                          "mathjs": "FunctionNode",
+                          "fn": {
+                            "mathjs": "SymbolNode",
+                            "name": "IF"
+                          },
+                          "args": [
+                            {
+                              "mathjs": "OperatorNode",
+                              "op": "<",
+                              "fn": "smaller",
+                              "args": [
+                                {
+                                  "mathjs": "SymbolNode",
+                                  "name": "SALARY"
+                                },
+                                {
+                                  "mathjs": "ConstantNode",
+                                  "value": 15000000
+                                }
+                              ],
+                              "implicit": false,
+                              "isPercentage": false
+                            },
+                            {
+                              "mathjs": "OperatorNode",
+                              "op": "*",
+                              "fn": "multiply",
+                              "args": [
+                                {
+                                  "mathjs": "SymbolNode",
+                                  "name": "SALARY"
+                                },
+                                {
+                                  "mathjs": "ConstantNode",
+                                  "value": 1.5
+                                }
+                              ],
+                              "implicit": false,
+                              "isPercentage": false
+                            },
+                            {
+                              "mathjs": "FunctionNode",
+                              "fn": {
+                                "mathjs": "SymbolNode",
+                                "name": "IF"
+                              },
+                              "args": [
+                                {
+                                  "mathjs": "OperatorNode",
+                                  "op": "<",
+                                  "fn": "smaller",
+                                  "args": [
+                                    {
+                                      "mathjs": "SymbolNode",
+                                      "name": "SALARY"
+                                    },
+                                    {
+                                      "mathjs": "ConstantNode",
+                                      "value": 30000000
+                                    }
+                                  ],
+                                  "implicit": false,
+                                  "isPercentage": false
+                                },
+                                {
+                                  "mathjs": "OperatorNode",
+                                  "op": "*",
+                                  "fn": "multiply",
+                                  "args": [
+                                    {
+                                      "mathjs": "SymbolNode",
+                                      "name": "SALARY"
+                                    },
+                                    {
+                                      "mathjs": "ConstantNode",
+                                      "value": 2
+                                    }
+                                  ],
+                                  "implicit": false,
+                                  "isPercentage": false
+                                },
+                                {
+                                  "mathjs": "OperatorNode",
+                                  "op": "*",
+                                  "fn": "multiply",
+                                  "args": [
+                                    {
+                                      "mathjs": "SymbolNode",
+                                      "name": "SALARY"
+                                    },
+                                    {
+                                      "mathjs": "ConstantNode",
+                                      "value": 2.5
+                                    }
+                                  ],
+                                  "implicit": false,
+                                  "isPercentage": false
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "mathjs": "ConstantNode",
+                          "value": 10000000
+                        }
+                      ]
+                    },
+                    {
+                      "mathjs": "ConstantNode",
+                      "value": 100000000
+                    }
+                  ]
+                },
+                {
+                  "mathjs": "ConstantNode",
+                  "value": 1000
+                }
+              ],
+              "implicit": false,
+              "isPercentage": false
+            }
+          ]
+        },
+        {
+          "mathjs": "ConstantNode",
+          "value": 1000
+        }
+      ],
+      "implicit": false,
+      "isPercentage": false
+    }
+  ]
+}
+```
